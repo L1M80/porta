@@ -48,6 +48,11 @@ interface Props {
     scope: number,
     absolutePathUri: string,
   ) => void;
+  onCommandAction?: (
+    trajectoryId: string,
+    stepIndex: number,
+    approved: boolean,
+  ) => Promise<void>;
   onConfirmOptimistic?: (ids: string[]) => void;
   optimisticMessages?: ChatMessage[];
   refreshKey?: number;
@@ -114,6 +119,7 @@ function MsgIcon({ name }: { name?: string }) {
 function SystemMessage({
   msg,
   onFilePermission,
+  onCommandAction,
 }: {
   msg: ChatMessage;
   onFilePermission: (
@@ -123,6 +129,11 @@ function SystemMessage({
     scope: number,
     absolutePathUri: string,
   ) => void;
+  onCommandAction?: (
+    trajectoryId: string,
+    stepIndex: number,
+    approved: boolean,
+  ) => Promise<void>;
 }) {
   const renderedContent = useMemo(
     () => renderMarkdown(msg.content ?? ""),
@@ -148,7 +159,7 @@ function SystemMessage({
     if (msg.type === "CORTEX_STEP_TYPE_RUN_COMMAND") {
       return (
         <div className="message system">
-          <CommandCard step={msg.step} />
+          <CommandCard step={msg.step} onCommandAction={onCommandAction} />
         </div>
       );
     }
@@ -369,6 +380,7 @@ export function ChatPanel({
   cascadeId,
   onRevert,
   onFilePermission,
+  onCommandAction,
   onConfirmOptimistic,
   optimisticMessages = [],
   refreshKey = 0,
@@ -620,6 +632,7 @@ export function ChatPanel({
                 key={`${msg.stepIndex}-${i}`}
                 msg={msg}
                 onFilePermission={onFilePermission}
+                onCommandAction={onCommandAction}
               />
             );
           }

@@ -170,6 +170,84 @@
   border-color: var(--accent-hover);
 }
 
+/* ── Command Action Card ── */
+
+.command-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.command-waiting-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-accent);
+}
+
+.waiting-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(var(--c-accent));
+  animation: waiting-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes waiting-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50%      { opacity: 1;   transform: scale(1.15); }
+}
+
+.command-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.command-action-btn {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.command-action-btn.reject {
+  background: transparent;
+  color: rgb(var(--c-error));
+  border-color: rgb(var(--c-error) / 0.3);
+}
+
+.command-action-btn.reject:hover {
+  background: rgb(var(--c-error) / 0.1);
+  border-color: rgb(var(--c-error) / 0.5);
+}
+
+.command-action-btn.approve {
+  background: rgb(var(--c-success) / 0.12);
+  color: rgb(var(--c-success));
+  border-color: rgb(var(--c-success) / 0.3);
+}
+
+.command-action-btn.approve:hover {
+  background: rgb(var(--c-success) / 0.2);
+  border-color: rgb(var(--c-success) / 0.5);
+  box-shadow: 0 1px 8px rgb(var(--c-success) / 0.15);
+}
+
 .step-card-file {
   font-family: var(--font-mono);
   font-size: 11px;

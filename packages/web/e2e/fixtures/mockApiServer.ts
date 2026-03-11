@@ -270,7 +270,7 @@ export class MockApiServer {
         return;
       }
 
-      const mutationMatch = pathname.match(/^\/api\/conversations\/([^/]+)\/(stop|revert|file-permission)$/);
+      const mutationMatch = pathname.match(/^\/api\/conversations\/([^/]+)\/(stop|revert|file-permission|command-action)$/);
       if (method === "POST" && mutationMatch) {
         sendJson(res, 200, {});
         return;

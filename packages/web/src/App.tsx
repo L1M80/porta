@@ -159,6 +159,31 @@ function ChatView() {
     [activeId, refresh, triggerSoftRefresh],
   );
 
+  // ── Command action (approve/reject proposed command) ──
+  const handleCommandAction = useCallback(
+    async (
+      trajectoryId: string,
+      stepIndex: number,
+      approved: boolean,
+    ) => {
+      if (!activeId) return;
+      try {
+        await api.commandAction(
+          activeId,
+          trajectoryId,
+          stepIndex,
+          approved,
+        );
+        triggerSoftRefresh();
+        refresh();
+      } catch (err) {
+        console.error("Failed to respond to command action:", err);
+        throw err; // Propagate so CommandCard can restore buttons
+      }
+    },
+    [activeId, refresh, triggerSoftRefresh],
+  );
+
   // ── Navigate helpers ──
   const handleNew = useCallback(() => {
     navigate(`/${projectSlug ?? "unknown"}`);
@@ -243,6 +268,7 @@ function ChatView() {
             cascadeId={activeId}
             onRevert={handleRevert}
             onFilePermission={handleFilePermission}
+            onCommandAction={handleCommandAction}
             onConfirmOptimistic={confirmOptimisticMessages}
             optimisticMessages={optimisticMessages}
             refreshKey={stepsRefreshKey}

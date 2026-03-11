@@ -56,7 +56,11 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
         });
       }
     } else if (type === "CORTEX_STEP_TYPE_RUN_COMMAND" && step.runCommand) {
-      const cmd = step.runCommand.commandLine ?? step.runCommand.command ?? "";
+      const cmd =
+        step.runCommand.commandLine ??
+        step.runCommand.command ??
+        step.runCommand.proposedCommandLine ??
+        "";
       if (cmd) {
         messages.push({
           role: "system",

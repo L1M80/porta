@@ -117,6 +117,21 @@ export const api = {
       }),
     }),
 
+  commandAction: (
+    cascadeId: string,
+    trajectoryId: string,
+    stepIndex: number,
+    approved: boolean,
+  ) =>
+    request(`/api/conversations/${cascadeId}/command-action`, {
+      method: "POST",
+      body: JSON.stringify({
+        trajectoryId,
+        stepIndex,
+        approved,
+      }),
+    }),
+
   revert: (cascadeId: string, stepIndex: number, model?: string) =>
     request(`/api/conversations/${cascadeId}/revert`, {
       method: "POST",

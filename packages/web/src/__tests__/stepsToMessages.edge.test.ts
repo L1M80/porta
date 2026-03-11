@@ -53,12 +53,24 @@ describe("stepsToMessages — edge cases", () => {
     expect(stepsToMessages([step])).toHaveLength(0);
   });
 
-  it("skips run command with no command line", () => {
+  it("skips run command with no command line at all", () => {
     const step: TrajectoryStep = {
       type: "CORTEX_STEP_TYPE_RUN_COMMAND",
       runCommand: {},
     };
     expect(stepsToMessages([step])).toHaveLength(0);
+  });
+
+  it("emits run command when only proposedCommandLine is present (waiting for approval)", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_RUN_COMMAND",
+      status: "CORTEX_STEP_STATUS_WAITING",
+      runCommand: { proposedCommandLine: "rm -rf /" },
+    };
+    const msgs = stepsToMessages([step]);
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].role).toBe("system");
+    expect(msgs[0].step?.runCommand?.proposedCommandLine).toBe("rm -rf /");
   });
 
   // ── Run command with fallback to command field ──

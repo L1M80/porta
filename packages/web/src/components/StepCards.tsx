@@ -148,18 +148,31 @@ export function FilePermissionCard({
 
 interface CommandCardProps {
   step: TrajectoryStep;
+  onCommandAction?: (
+    trajectoryId: string,
+    stepIndex: number,
+    approved: boolean,
+  ) => Promise<void>;
 }
 
-export function CommandCard({ step }: CommandCardProps) {
+export function CommandCard({ step, onCommandAction }: CommandCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [responded, setResponded] = useState(false);
   const cmd = step.runCommand;
   if (!cmd) return null;
 
-  const command = cmd.commandLine ?? cmd.command ?? "";
+  const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+  // When waiting for approval, show the proposed command; otherwise show executed
+  const command = isWaiting
+    ? (cmd.proposedCommandLine ?? cmd.commandLine ?? cmd.command ?? "")
+    : (cmd.commandLine ?? cmd.command ?? "");
   const output = cmd.combinedOutput?.full ?? cmd.output ?? "";
   const cwd = cmd.cwd;
   const exitCode = cmd.exitCode;
-  const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+
+  const trajectoryId =
+    step.metadata?.sourceTrajectoryStepInfo?.trajectoryId ?? "";
+  const stepIndex = step.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? 0;
 
   const statusClass = isWaiting
     ? "cmd-wait"
@@ -168,6 +181,17 @@ export function CommandCard({ step }: CommandCardProps) {
       : exitCode === 0
         ? "cmd-ok"
         : "cmd-fail";
+
+  const handleAction = async (approved: boolean) => {
+    if (!onCommandAction) return;
+    setResponded(true);
+    try {
+      await onCommandAction(trajectoryId, stepIndex, approved);
+    } catch {
+      // Request failed — restore buttons so user can retry
+      setResponded(false);
+    }
+  };
 
   return (
     <div className={`chat-block step-card command-card ${statusClass}`}>
@@ -187,6 +211,28 @@ export function CommandCard({ step }: CommandCardProps) {
         )}
       </button>
       {cwd && <div className="step-card-cwd">{cwd}</div>}
+      {isWaiting && !responded && onCommandAction && (
+        <div className="step-card-actions command-action-bar">
+          <span className="command-waiting-label">
+            <span className="waiting-dot" />
+            Waiting for approval
+          </span>
+          <div className="command-action-buttons">
+            <button
+              className="approve-btn command-action-btn reject"
+              onClick={() => handleAction(false)}
+            >
+              Reject
+            </button>
+            <button
+              className="approve-btn command-action-btn approve"
+              onClick={() => handleAction(true)}
+            >
+              Approve
+            </button>
+          </div>
+        </div>
+      )}
       {expanded && output && <pre className="step-card-output">{output}</pre>}
       <StepCopyBtn text={output ? `$ ${command}\n${output}` : `$ ${command}`} />
     </div>

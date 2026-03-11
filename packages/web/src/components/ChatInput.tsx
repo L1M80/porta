@@ -341,7 +341,16 @@ export function ChatInput({
               type="file"
               accept={ALLOWED_TYPES.join(",")}
               multiple
-              style={{ display: "none" }}
+              tabIndex={-1}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                width: 0,
+                height: 0,
+                overflow: "hidden",
+                opacity: 0,
+                pointerEvents: "none",
+              }}
               onChange={handleFileSelect}
               disabled={inputDisabled}
             />
