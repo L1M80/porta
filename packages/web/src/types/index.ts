@@ -229,3 +229,10 @@ export interface ChatMessage {
   /** Local-only optimistic lifecycle state */
   optimisticState?: "unconfirmed" | "failed";
 }
+
+// ── Client Settings ──
+
+export interface ClientSettings {
+  /** Model ID used when the user hasn't explicitly picked one per-message. */
+  defaultModel: string | null;
+}
