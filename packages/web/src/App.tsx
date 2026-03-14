@@ -394,6 +394,7 @@ function ChatView() {
             draft={draftText}
             onDraftChange={handleDraftChange}
             defaultModel={settings.defaultModel}
+            defaultPlannerType={settings.defaultPlannerType}
           />
         )}
       </div>

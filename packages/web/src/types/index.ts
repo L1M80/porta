@@ -235,4 +235,6 @@ export interface ChatMessage {
 export interface ClientSettings {
   /** Model ID used when the user hasn't explicitly picked one per-message. */
   defaultModel: string | null;
+  /** Planner type used when the user hasn't explicitly picked one per-message. */
+  defaultPlannerType: "conversational" | "planning";
 }

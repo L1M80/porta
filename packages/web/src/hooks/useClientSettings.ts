@@ -13,6 +13,7 @@ const STORAGE_KEY = "porta:settings";
 
 const DEFAULT_SETTINGS: ClientSettings = {
   defaultModel: DEFAULT_MODEL,
+  defaultPlannerType: "conversational",
 };
 
 function readSettings(): ClientSettings {

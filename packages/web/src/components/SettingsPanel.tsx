@@ -3,6 +3,7 @@
  *
  * Currently supports:
  *   - Default model selection
+ *   - Default planner type (Fast / Plan)
  *
  * Settings are stored client-side in localStorage.
  */
@@ -11,6 +12,7 @@ import { useState, useEffect, useCallback } from "react";
 import { IconChevronLeft, IconCheck } from "./Icons";
 import { api } from "../api/client";
 import type { ClientSettings } from "../types";
+import type { PlannerType } from "./ChatInput";
 
 interface ModelConfig {
   label: string;
@@ -66,8 +68,16 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
     [onUpdate, flashSaved],
   );
 
+  const handlePlannerChange = useCallback(
+    (value: string) => {
+      onUpdate({ defaultPlannerType: value as PlannerType });
+      flashSaved();
+    },
+    [onUpdate, flashSaved],
+  );
+
   const handleReset = useCallback(() => {
-    onUpdate({ defaultModel: null });
+    onUpdate({ defaultModel: null, defaultPlannerType: "conversational" });
     flashSaved();
   }, [onUpdate, flashSaved]);
 
@@ -115,6 +125,28 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
                   {m.isRecommended ? " (Recommended)" : ""}
                 </option>
               ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ── Planner ── */}
+        <div className="settings-section">
+          <h2 className="settings-section-title">Planner</h2>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Default Mode</span>
+              <span className="settings-row-desc">
+                Fast gives direct single-step responses. Plan uses a
+                multi-step structured approach for complex tasks.
+              </span>
+            </div>
+            <select
+              className="settings-select"
+              value={settings.defaultPlannerType}
+              onChange={(e) => handlePlannerChange(e.target.value)}
+            >
+              <option value="conversational">Fast</option>
+              <option value="planning">Plan</option>
             </select>
           </div>
         </div>
