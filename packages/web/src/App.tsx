@@ -5,11 +5,13 @@ import {
   useParams,
   useNavigate,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatPanel } from "./components/ChatPanel";
 import { ChatInput } from "./components/ChatInput";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { WorkspaceSelector } from "./components/WorkspaceSelector";
 import { IconFolder } from "./components/Icons";
 import { useConversations } from "./hooks/useConversations";
@@ -17,6 +19,7 @@ import { usePolling } from "./hooks/usePolling";
 import { useWorkspaces, slugFromUri } from "./hooks/useWorkspaces";
 import { useDraftText } from "./hooks/useDraftText";
 import { useChatActions } from "./hooks/useChatActions";
+import { useClientSettings } from "./hooks/useClientSettings";
 import { api } from "./api/client";
 import { isUnconfirmedOptimisticMessage } from "./utils/optimisticMessages";
 import type { HealthResponse, MediaAttachment } from "./types";
@@ -26,6 +29,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
+      <Route path="/:projectSlug/settings" element={<ChatView />} />
       <Route path="/:projectSlug" element={<ChatView />} />
       <Route path="/:projectSlug/:chatId" element={<ChatView />} />
     </Routes>
@@ -67,6 +71,8 @@ function ChatView() {
     chatId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSettingsPage = location.pathname.endsWith("/settings");
   const activeId = chatId ?? null;
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 480);
   const isMobile = () => window.innerWidth <= 480;
@@ -79,6 +85,7 @@ function ChatView() {
     projectSlug,
   );
   const { draftText, handleDraftChange } = useDraftText(activeId);
+  const { settings, updateSettings } = useClientSettings();
 
   const activeConv = conversations.find((c) => c.id === activeId);
   const isRunning = activeConv?.summary.status === "CASCADE_RUN_STATUS_RUNNING";
@@ -244,6 +251,10 @@ function ChatView() {
         }}
         onNew={handleNew}
         onDelete={handleDelete}
+        onSettings={() => {
+          navigate(`/${projectSlug ?? "unknown"}/settings`);
+          if (isMobile()) setSidebarOpen(false);
+        }}
         loading={loading}
         connected={connected}
         isOpen={sidebarOpen}
@@ -262,7 +273,13 @@ function ChatView() {
           projectName={projectSlug ?? undefined}
           onMenuToggle={() => setSidebarOpen(true)}
         />
-        {activeId ? (
+        {isSettingsPage ? (
+          <SettingsPanel
+            settings={settings}
+            onUpdate={updateSettings}
+            onBack={() => navigate(`/${projectSlug ?? "unknown"}`)}
+          />
+        ) : activeId ? (
           <ChatPanel
             key={activeId}
             cascadeId={activeId}
@@ -368,14 +385,18 @@ function ChatView() {
             )}
           </div>
         )}
-        <ChatInput
-          onSend={handleSend}
-          onStop={handleStop}
-          isRunning={isRunning}
-          disabled={!connected}
-          draft={draftText}
-          onDraftChange={handleDraftChange}
-        />
+        {!isSettingsPage && (
+          <ChatInput
+            onSend={handleSend}
+            onStop={handleStop}
+            isRunning={isRunning}
+            disabled={!connected}
+            draft={draftText}
+            onDraftChange={handleDraftChange}
+            defaultModel={settings.defaultModel}
+            defaultPlannerType={settings.defaultPlannerType}
+          />
+        )}
       </div>
     </div>
   );

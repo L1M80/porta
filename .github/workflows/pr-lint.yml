@@ -43,7 +43,14 @@ jobs:
       - name: Validate PR title
         env:
           TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
         run: |
+          # Allow dependabot branches to bypass
+          if [[ "$BRANCH" =~ ^dependabot/ ]]; then
+            echo "✅ Bypass Dependabot PR: $TITLE"
+            exit 0
+          fi
+
           # Conventional Commits: type(optional-scope): description
           PATTERN='^(feat|fix|refactor|docs|test|chore|ci)(\([a-z0-9-]+\))?!?: .{1,}'
 

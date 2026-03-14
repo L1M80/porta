@@ -26,6 +26,10 @@ interface Props {
   disabled?: boolean;
   draft: string;
   onDraftChange: (text: string) => void;
+  /** Default model from client settings; used as initial selection. */
+  defaultModel?: string | null;
+  /** Default planner type from client settings. */
+  defaultPlannerType?: PlannerType;
 }
 
 interface AttachmentPreview {
@@ -104,9 +108,24 @@ export function ChatInput({
   disabled,
   draft,
   onDraftChange,
+  defaultModel,
+  defaultPlannerType,
 }: Props) {
-  const [model, setModel] = useState<string | null>(DEFAULT_MODEL);
-  const [plannerType, setPlannerType] = useState<PlannerType>("conversational");
+  const effectiveDefault = defaultModel ?? DEFAULT_MODEL;
+  const [model, setModel] = useState<string | null>(effectiveDefault);
+
+  // Sync model when settings change
+  useEffect(() => {
+    setModel(effectiveDefault);
+  }, [effectiveDefault]);
+
+  const effectivePlanner = defaultPlannerType ?? "conversational";
+  const [plannerType, setPlannerType] = useState<PlannerType>(effectivePlanner);
+
+  // Sync planner type when settings change
+  useEffect(() => {
+    setPlannerType(effectivePlanner);
+  }, [effectivePlanner]);
   const [attachments, setAttachments] = useState<AttachmentPreview[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
