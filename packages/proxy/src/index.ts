@@ -27,7 +27,7 @@ import { setupWebSocket } from "./ws.js";
 const PORT = parseInt(process.env.PORTA_PORT ?? "3170", 10);
 const HOST = resolveProxyHost();
 
-assertSupportedListenHost(HOST);
+assertSupportedListenHost(HOST, process.env);
 
 const app = new Hono();
 
