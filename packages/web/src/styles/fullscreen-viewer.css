@@ -1,0 +1,193 @@
+/* ── Fullscreen Step Viewer ── */
+
+.fullscreen-viewer {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg-surface);
+  animation: fade-in 150ms ease-out;
+  height: 100%;
+}
+
+.fullscreen-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.fullscreen-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  flex: 1;
+  min-width: 0;
+}
+
+.fullscreen-viewer-title .title-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+.fullscreen-viewer-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding: 2px 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.fullscreen-viewer-nav .nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.fullscreen-viewer-nav .nav-btn:hover:not(:disabled) {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.fullscreen-viewer-nav .nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fullscreen-viewer-nav .nav-info {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  user-select: none;
+  min-width: 70px;
+  text-align: center;
+}
+
+.fullscreen-viewer-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.fullscreen-viewer-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.fullscreen-viewer-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+  height: 100%;
+}
+
+.fullscreen-diff-container,
+.fullscreen-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+.fullscreen-viewer-body pre {
+  flex: 1;
+  margin: 0;
+  padding: 24px 32px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  overflow: auto;
+  background: var(--bg-primary);
+  min-height: 100%;
+}
+
+/* Reusing diff-line styles from step-cards */
+.fullscreen-viewer-body .diff-line {
+  display: flex;
+  min-width: fit-content;
+  padding: 0 4px;
+}
+
+.fullscreen-viewer-body .diff-line-number {
+  width: 40px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  user-select: none;
+  text-align: right;
+  padding-right: 12px;
+  font-size: 11.5px;
+  opacity: 0.6;
+}
+
+.fullscreen-viewer-body .diff-prefix {
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  user-select: none;
+  text-align: center;
+}
+
+.fullscreen-viewer-body .diff-add {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.fullscreen-viewer-body .diff-add .diff-text {
+  color: #4caf50;
+}
+
+.fullscreen-viewer-body .diff-del {
+  background: rgba(239, 83, 80, 0.1);
+}
+
+.fullscreen-viewer-body .diff-del .diff-text {
+  color: #ef5350;
+}
+
+.fullscreen-viewer-body .diff-hunk {
+  color: var(--text-accent);
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.fullscreen-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}

@@ -36,7 +36,7 @@ import {
   IconMessageCircle,
   IconAlertTriangle,
 } from "./Icons";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, TrajectoryStep } from "../types";
 
 interface Props {
   cascadeId: string;
@@ -61,6 +61,8 @@ interface Props {
   isConversationRunning?: boolean;
   /** Called when the WS reports the agent went idle — triggers sidebar refresh. */
   onSidebarRefresh?: () => void;
+  /** Called whenever the steps are updated — used for Session Activity tracking. */
+  onStepsChange?: (steps: TrajectoryStep[]) => void;
 }
 
 /** Collapsible thinking/reasoning block */
@@ -388,6 +390,7 @@ export function ChatPanel({
   totalStepCount,
   isConversationRunning = false,
   onSidebarRefresh,
+  onStepsChange,
 }: Props) {
   const {
     steps: rawSteps,
@@ -404,6 +407,10 @@ export function ChatPanel({
     onSidebarRefresh,
     isConversationRunning,
   );
+
+  useEffect(() => {
+    onStepsChange?.(rawSteps);
+  }, [rawSteps, onStepsChange]);
 
   // Soft re-fetch when refreshKey changes (e.g. after send)
   const prevKeyRef = useRef(refreshKey);
