@@ -1,0 +1,191 @@
+/* ── Session Activity Panel ── */
+
+.session-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 8px 8px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sa-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  padding: 10px 4px 4px;
+  user-select: none;
+}
+
+/* ── Empty state ── */
+
+.sa-empty {
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── File entry ─── */
+
+.sa-file-item {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.sa-file-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.sa-file-header:hover {
+  background: var(--bg-hover);
+}
+
+.sa-file-icon {
+  color: var(--text-accent);
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.sa-file-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.sa-file-badge {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  background: var(--bg-active);
+  border-radius: 8px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.sa-file-chevron {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.sa-file-chevron.open {
+  transform: rotate(90deg);
+}
+
+/* ── Event history ── */
+
+.sa-events {
+  padding: 2px 8px 6px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sa-event-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  transition: background var(--transition-fast);
+}
+
+.sa-event-row:hover {
+  background: var(--bg-hover);
+}
+
+.sa-event-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.sa-event-icon.view   { color: rgb(var(--c-accent) / 0.85); }
+.sa-event-icon.edit   { color: rgb(160, 220, 130); }
+.sa-event-icon.grep   { color: rgb(var(--c-warning, 234 179 8) / 0.85); }
+.sa-event-icon.outline { color: rgb(var(--c-accent) / 0.6); }
+.sa-event-icon.code-item { color: rgb(var(--c-accent) / 0.7); }
+
+.sa-event-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  min-width: 40px;
+}
+
+.sa-event-detail {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* ── Commands ── */
+
+.sa-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  margin-bottom: 1px;
+}
+
+.sa-cmd-row:hover {
+  background: var(--bg-hover);
+}
+
+.sa-cmd-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.sa-cmd-icon.ok   { color: rgb(var(--c-success, 74 222 128)); }
+.sa-cmd-icon.fail { color: rgb(var(--c-error, 248 113 113)); }
+.sa-cmd-icon.wait { color: rgb(var(--c-warning, 234 179 8)); }
+
+.sa-cmd-text {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-cmd-exit {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.sa-cmd-exit.ok   { color: rgb(var(--c-success, 74 222 128) / 0.8); }
+.sa-cmd-exit.fail { color: rgb(var(--c-error, 248 113 113) / 0.8); }

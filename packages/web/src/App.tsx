@@ -13,6 +13,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { ChatInput } from "./components/ChatInput";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { WorkspaceSelector } from "./components/WorkspaceSelector";
+import { FullscreenStepViewer } from "./components/FullscreenStepViewer";
 import { IconFolder } from "./components/Icons";
 import { useConversations } from "./hooks/useConversations";
 import { usePolling } from "./hooks/usePolling";
@@ -22,7 +23,7 @@ import { useChatActions } from "./hooks/useChatActions";
 import { useClientSettings } from "./hooks/useClientSettings";
 import { api } from "./api/client";
 import { isUnconfirmedOptimisticMessage } from "./utils/optimisticMessages";
-import type { HealthResponse, MediaAttachment } from "./types";
+import type { HealthResponse, MediaAttachment, TrajectoryStep } from "./types";
 import type { PlannerType } from "./components/ChatInput";
 
 export default function App() {
@@ -90,6 +91,18 @@ function ChatView() {
   const activeConv = conversations.find((c) => c.id === activeId);
   const isRunning = activeConv?.summary.status === "CASCADE_RUN_STATUS_RUNNING";
   const connected = !!health && health.languageServers.length > 0;
+
+  const [activitySteps, setActivitySteps] = useState<TrajectoryStep[]>([]);
+  const [selectedStepForFullscreen, setSelectedStepForFullscreen] = useState<TrajectoryStep | null>(null);
+
+  // Reset activity steps when switching chats
+  const prevActiveIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeId !== prevActiveIdRef.current) {
+      prevActiveIdRef.current = activeId;
+      setActivitySteps([]);
+    }
+  }, [activeId]);
 
   const {
     optimisticMessages,
@@ -252,6 +265,7 @@ function ChatView() {
         onNew={handleNew}
         onDelete={handleDelete}
         onSettings={() => {
+          setSelectedStepForFullscreen(null);
           navigate(`/${projectSlug ?? "unknown"}/settings`);
           if (isMobile()) setSidebarOpen(false);
         }}
@@ -259,6 +273,9 @@ function ChatView() {
         connected={connected}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((v) => !v)}
+        activitySteps={activitySteps}
+        activityFilters={settings.activityFilters}
+        onStepClick={setSelectedStepForFullscreen}
       />
       {/* Mobile backdrop: tap to close sidebar */}
       {sidebarOpen && (
@@ -293,6 +310,7 @@ function ChatView() {
             totalStepCount={activeConv?.summary.stepCount}
             isConversationRunning={isRunning}
             onSidebarRefresh={refresh}
+            onStepsChange={setActivitySteps}
           />
         ) : (
           <div
@@ -395,6 +413,15 @@ function ChatView() {
             onDraftChange={handleDraftChange}
             defaultModel={settings.defaultModel}
             defaultPlannerType={settings.defaultPlannerType}
+          />
+        )}
+
+        {selectedStepForFullscreen && (
+          <FullscreenStepViewer
+            step={selectedStepForFullscreen}
+            allSteps={activitySteps}
+            onStepChange={setSelectedStepForFullscreen}
+            onClose={() => setSelectedStepForFullscreen(null)}
           />
         )}
       </div>

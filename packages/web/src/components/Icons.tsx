@@ -67,7 +67,7 @@ export const IconMenu = ({ size = 16, className }: IconProps) =>
   m(size, className, ["M4 6h16", "M4 12h16", "M4 18h16"]);
 
 export const IconX = ({ size = 16, className }: IconProps) =>
-  m(size, className, ["M18 6 6 18", "m6-12 12 12"]);
+  d(size, className, "M18 6 6 18M6 6l12 12");
 
 export const IconChevron = ({ size = 16, className }: IconProps) =>
   d(size, className, "m6 9 6 6 6-6");
@@ -247,3 +247,6 @@ export const IconGear = ({ size = 16, className }: IconProps) =>
 
 export const IconChevronLeft = ({ size = 16, className }: IconProps) =>
   d(size, className, "m15 18-6-6 6-6");
+
+export const IconChevronRight = ({ size = 16, className }: IconProps) =>
+  d(size, className, "m9 18 6-6-6-6");

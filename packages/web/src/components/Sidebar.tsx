@@ -1,5 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import type { ConversationEntry } from "../hooks/useConversations";
+import type { TrajectoryStep } from "../types";
+import { SessionActivity } from "./SessionActivity";
 import { api } from "../api/client";
 import {
   IconPlus,
@@ -9,6 +11,7 @@ import {
   IconX,
   IconSpinner,
   IconGear,
+  IconZap,
 } from "./Icons";
 
 interface Props {
@@ -22,6 +25,15 @@ interface Props {
   connected: boolean;
   isOpen: boolean;
   onToggle: () => void;
+  /** Live steps from the active chat — used for Session Activity panel. */
+  activitySteps?: TrajectoryStep[];
+  activityFilters?: {
+    edits: boolean;
+    views: boolean;
+    commands: boolean;
+    search: boolean;
+  };
+  onStepClick?: (step: TrajectoryStep) => void;
 }
 
 interface WorkspaceGroup {
@@ -113,6 +125,9 @@ export function Sidebar({
   connected,
   isOpen,
   onToggle,
+  activitySteps = [],
+  activityFilters,
+  onStepClick,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -131,6 +146,13 @@ export function Sidebar({
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Sidebar tab: 'chats' | 'activity'
+  const [activeTab, setActiveTab] = useState<"chats" | "activity">("chats");
+
+  // Reset tab when switching chats
+  useEffect(() => {
+    setActiveTab("chats");
+  }, [activeId]);
 
   const closeMenu = useCallback(() => setMenuOpen(null), []);
 
@@ -202,6 +224,17 @@ export function Sidebar({
         setTimeout(() => searchInputRef.current?.focus(), 50);
       },
     },
+    ...(activeId
+      ? [
+          {
+            icon: <IconZap size={14} />,
+            label: "Activity",
+            onClick: () =>
+              setActiveTab((t) => (t === "activity" ? "chats" : "activity")),
+            active: activeTab === "activity",
+          },
+        ]
+      : []),
     { icon: <IconGear size={14} />, label: "Settings", onClick: onSettings },
   ];
 
@@ -385,8 +418,26 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* Conversation list */}
+      {/* Main content: chat list AND/OR session activity */}
       <div className="sidebar-list">
+        {activeTab === "activity" && activeId && (
+          <div
+            className="sidebar-activity-wrapper"
+            style={{
+              borderBottom: "1px solid var(--border-subtle)",
+              marginBottom: 8,
+              paddingBottom: 8,
+              flexShrink: 0,
+            }}
+          >
+            <SessionActivity
+              steps={activitySteps}
+              filters={activityFilters}
+              onStepClick={onStepClick}
+            />
+          </div>
+        )}
+
         {loading && conversations.length === 0 ? (
           <div
             style={{ display: "flex", justifyContent: "center", padding: 20 }}

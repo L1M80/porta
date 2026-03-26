@@ -6,6 +6,8 @@
 @import "./styles/workspace.css";
 @import "./styles/chat-states.css";
 @import "./styles/step-cards.css";
+@import "./styles/session-activity.css";
+@import "./styles/fullscreen-viewer.css";
 @import "./styles/overlays.css";
 @import "./styles/interaction.css";
 @import "./styles/settings.css";
