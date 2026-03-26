@@ -190,6 +190,14 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
         type,
         icon: "search",
       });
+    } else if (type === "CORTEX_STEP_TYPE_ERROR_MESSAGE") {
+      messages.push({
+        role: "system",
+        content: "",
+        stepIndex: i,
+        type,
+        step,
+      });
     }
   }
 

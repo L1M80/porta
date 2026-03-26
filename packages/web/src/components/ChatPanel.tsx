@@ -21,6 +21,7 @@ import {
   CommandCard,
   CodeActionCard,
   FilePermissionCard,
+  ErrorCard,
   getFilePermissionRequest,
 } from "./StepCards";
 import {
@@ -167,6 +168,13 @@ function SystemMessage({
       return (
         <div className="message system">
           <CodeActionCard step={msg.step} />
+        </div>
+      );
+    }
+    if (msg.type === "CORTEX_STEP_TYPE_ERROR_MESSAGE") {
+      return (
+        <div className="message system">
+          <ErrorCard step={msg.step} />
         </div>
       );
     }

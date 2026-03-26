@@ -7,6 +7,7 @@ import {
   IconFile,
   IconFileText,
   IconLock,
+  IconAlertTriangle,
 } from "./Icons";
 import type { TrajectoryStep, FilePermissionRequest } from "../types";
 
@@ -339,6 +340,44 @@ export function CodeActionCard({ step }: CodeActionCardProps) {
           </pre>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Error Card ──
+
+export function ErrorCard({ step }: { step: TrajectoryStep }) {
+  const [expanded, setExpanded] = useState(false);
+  const raw = (step as any).errorMessage || (step as any).text || (step as any).message || (step as any).error;
+
+  let title = "Agent Error";
+  let description = "An unexpected error occurred.";
+  let fullOutput = "";
+
+  if (typeof raw === "string") description = raw;
+  else if (raw && typeof raw === "object") {
+    const errObj = raw.error || raw;
+    title = errObj.errorCode ? `HTTP ${errObj.errorCode}` : "Agent Error";
+    description = errObj.userErrorMessage || errObj.modelErrorMessage || errObj.message || errObj.shortError || "An API or internal error was encountered.";
+    fullOutput = errObj.fullError || JSON.stringify(errObj, null, 2);
+  }
+
+  return (
+    <div className="chat-block step-card cmd-fail">
+      <button
+        className="step-card-header"
+        onClick={() => fullOutput && setExpanded((v) => !v)}
+      >
+        <span className="step-card-icon" style={{ color: "rgb(var(--c-error))" }}>
+          <IconAlertTriangle size={12} />
+        </span>
+        <span className="step-card-desc" style={{ textAlign: "left" }}>
+          <strong>{title}</strong>: {description}
+        </span>
+        {fullOutput && <span className={`step-card-chevron ${expanded ? "open" : ""}`}>▾</span>}
+      </button>
+      {expanded && fullOutput && <pre className="step-card-output">{fullOutput}</pre>}
+      {expanded && fullOutput && <StepCopyBtn text={fullOutput} />}
     </div>
   );
 }
