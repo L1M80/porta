@@ -265,6 +265,7 @@ function ChatView() {
         onNew={handleNew}
         onDelete={handleDelete}
         onSettings={() => {
+          setSelectedStepForFullscreen(null);
           navigate(`/${projectSlug ?? "unknown"}/settings`);
           if (isMobile()) setSidebarOpen(false);
         }}
@@ -273,6 +274,7 @@ function ChatView() {
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((v) => !v)}
         activitySteps={activitySteps}
+        activityFilters={settings.activityFilters}
         onStepClick={setSelectedStepForFullscreen}
       />
       {/* Mobile backdrop: tap to close sidebar */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSessionActivity } from "../hooks/useSessionActivity";
 import type { ActivityEventType } from "../hooks/useSessionActivity";
 import type { TrajectoryStep } from "../types";
@@ -15,6 +15,12 @@ import {
 interface Props {
   steps: TrajectoryStep[];
   loading?: boolean;
+  filters?: {
+    edits: boolean;
+    views: boolean;
+    commands: boolean;
+    search: boolean;
+  };
   onStepClick?: (step: TrajectoryStep) => void;
 }
 
@@ -51,9 +57,34 @@ function cmdStatusClass(exitCode?: number, status?: string): string {
 
 // ── Main component ──
 
-export function SessionActivity({ steps, loading, onStepClick }: Props) {
+export function SessionActivity({ steps, loading, filters, onStepClick }: Props) {
   const activity = useSessionActivity(steps);
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+  const filteredFiles = useMemo(() => {
+    if (!filters) return activity.files;
+    return activity.files
+      .map((file) => ({
+        ...file,
+        events: file.events.filter((ev) => {
+          if (ev.type === "edit") return filters.edits;
+          if (
+            ev.type === "view" ||
+            ev.type === "outline" ||
+            ev.type === "code-item"
+          )
+            return filters.views;
+          if (ev.type === "grep") return filters.search;
+          return true;
+        }),
+      }))
+      .filter((file) => file.events.length > 0);
+  }, [activity.files, filters]);
+
+  const filteredCommands = useMemo(() => {
+    if (!filters || filters.commands) return activity.commands;
+    return [];
+  }, [activity.commands, filters]);
 
   const toggleFile = (uri: string) => {
     setExpandedFiles((prev) => {
@@ -77,7 +108,7 @@ export function SessionActivity({ steps, loading, onStepClick }: Props) {
     );
   }
 
-  const hasAny = activity.files.length > 0 || activity.commands.length > 0;
+  const hasAny = filteredFiles.length > 0 || filteredCommands.length > 0;
 
   if (!hasAny) {
     return (
@@ -94,10 +125,10 @@ export function SessionActivity({ steps, loading, onStepClick }: Props) {
   return (
     <div className="session-activity">
       {/* ── Files ── */}
-      {activity.files.length > 0 && (
+      {filteredFiles.length > 0 && (
         <>
           <div className="sa-section-label">Files</div>
-          {activity.files.map((file) => {
+          {filteredFiles.map((file: any) => {
             const isExpanded = expandedFiles.has(file.uri);
             return (
               <div key={file.uri} className="sa-file-item">
@@ -118,13 +149,13 @@ export function SessionActivity({ steps, loading, onStepClick }: Props) {
 
                 {isExpanded && (
                   <div className="sa-events">
-                    {file.events.map((ev, i) => (
+                    {file.events.map((ev: any, i: number) => (
                       <div key={i} className="sa-event-row" onClick={() => onStepClick?.(ev.step)} style={{ cursor: onStepClick ? "pointer" : "default" }}>
                         <span className={`sa-event-icon ${ev.type}`}>
                           <EventIcon type={ev.type} size={10} />
                         </span>
                         <span className="sa-event-type">
-                          {EVENT_LABEL[ev.type]}
+                          {EVENT_LABEL[ev.type as ActivityEventType]}
                         </span>
                         {ev.detail && (
                           <span className="sa-event-detail">{ev.detail}</span>
@@ -140,10 +171,10 @@ export function SessionActivity({ steps, loading, onStepClick }: Props) {
       )}
 
       {/* ── Commands ── */}
-      {activity.commands.length > 0 && (
+      {filteredCommands.length > 0 && (
         <>
           <div className="sa-section-label">Commands</div>
-          {activity.commands.map((cmd) => {
+          {filteredCommands.map((cmd: any) => {
             const cls = cmdStatusClass(cmd.exitCode, cmd.status);
             return (
               <div key={cmd.stepIndex} className="sa-cmd-row" onClick={() => onStepClick?.(cmd.step)} style={{ cursor: onStepClick ? "pointer" : "default" }}>

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import type { TrajectoryStep } from "../types";
 import { IconFileText, IconPencil, IconX, IconChevronLeft, IconChevronRight } from "./Icons";
 
@@ -40,6 +40,16 @@ function diffLineClass(type: DiffLineType): string {
   return "";
 }
 
+function formatTime(iso?: string): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch {
+    return "";
+  }
+}
+
 interface FullscreenStepViewerProps {
   step: TrajectoryStep;
   allSteps: TrajectoryStep[];
@@ -53,11 +63,25 @@ export function FullscreenStepViewer({
   onStepChange, 
   onClose 
 }: FullscreenStepViewerProps) {
+  const codeRef = useRef<HTMLDivElement>(null);
+  const [baseIndex, setBaseIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      const firstChange = codeRef.current.querySelector(".diff-add, .diff-del");
+      if (firstChange) {
+        firstChange.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        codeRef.current.scrollTo(0, 0);
+      }
+    }
+    setBaseIndex(null);
+  }, [step]);
+
   const currentUri = useMemo(() => getStepUri(step), [step]);
   
   const fileHistory = useMemo(() => {
     if (!currentUri) return [];
-    // We filter all steps that contain edits (diffs) for this same file
     return allSteps.filter(s => {
       const uri = getStepUri(s);
       if (uri !== currentUri) return false;
@@ -70,6 +94,35 @@ export function FullscreenStepViewer({
   const totalRevisions = fileHistory.length;
   const hasHistory = totalRevisions > 1;
 
+  // Cumulative Diff Logic
+  const comparisonDiff = useMemo(() => {
+    if (baseIndex === null || baseIndex === currentIndex) return null;
+    
+    // Determine range
+    const isForward = baseIndex < currentIndex;
+    const start = isForward ? baseIndex + 1 : currentIndex + 1;
+    const end = isForward ? currentIndex : baseIndex;
+    
+    const range = fileHistory.slice(start, end + 1);
+    const allLines: DiffLine[] = [];
+    
+    range.forEach(s => {
+      const lines = s.codeAction?.actionResult?.edit?.diff?.unifiedDiff?.lines ?? [];
+      lines.forEach(l => {
+        if (l.type === "UNIFIED_DIFF_LINE_TYPE_HUNK_HEADER") return;
+        // In reverse mode, additions become deletions and vice versa
+        let type = l.type;
+        if (!isForward) {
+          if (type === "UNIFIED_DIFF_LINE_TYPE_INSERT") type = "UNIFIED_DIFF_LINE_TYPE_DELETE";
+          else if (type === "UNIFIED_DIFF_LINE_TYPE_DELETE") type = "UNIFIED_DIFF_LINE_TYPE_INSERT";
+        }
+        allLines.push({ ...l, type });
+      });
+    });
+    
+    return allLines;
+  }, [baseIndex, currentIndex, fileHistory]);
+
   const handlePrev = () => {
     if (currentIndex > 0) onStepChange(fileHistory[currentIndex - 1]);
   };
@@ -77,15 +130,16 @@ export function FullscreenStepViewer({
   const handleNext = () => {
     if (currentIndex < totalRevisions - 1) onStepChange(fileHistory[currentIndex + 1]);
   };
-  // Diff Extraction
-  const diffLinesRaw: DiffLine[] =
-    step.codeAction?.actionResult?.edit?.diff?.unifiedDiff?.lines ?? [];
-  const hasDiff = diffLinesRaw.length > 0;
+
+  // Diff to show
+  const activeDiffLinesRaw = comparisonDiff || 
+    (step.codeAction?.actionResult?.edit?.diff?.unifiedDiff?.lines ?? []);
+  const hasDiff = activeDiffLinesRaw.length > 0;
   
   const diffLines = useMemo(() => {
     let oldLine = 1;
     let newLine = 1;
-    return diffLinesRaw.map((line) => {
+    return activeDiffLinesRaw.map((line) => {
       if (line.type === "UNIFIED_DIFF_LINE_TYPE_HUNK_HEADER") {
         const match = line.text?.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
         if (match) {
@@ -109,12 +163,16 @@ export function FullscreenStepViewer({
       
       return { ...line, oldNum: currOld, newNum: currNew };
     });
-  }, [diffLinesRaw]);
+  }, [activeDiffLinesRaw]);
 
-  // File Content Extraction (from view_file)
   const viewFileUri = step.viewFile?.absolutePathUri ?? "";
+  const title = (comparisonDiff 
+    ? `Comparison: Rev ${baseIndex! + 1} ↔ ${currentIndex + 1}`
+    : step.codeAction?.description ?? step.metadata?.toolCall?.name ?? "Revision");
 
-  const title = step.codeAction?.description ?? step.metadata?.toolCall?.name ?? "Revision";
+  const reversedHistoryIndices = useMemo(() => {
+    return fileHistory.map((_, i) => i).reverse();
+  }, [fileHistory]);
 
   return (
     <div className="fullscreen-viewer">
@@ -124,26 +182,47 @@ export function FullscreenStepViewer({
           <span className="title-text">{title}</span>
           
           {hasHistory && (
-            <div className="fullscreen-viewer-nav">
-              <button 
-                className="nav-btn" 
-                onClick={handlePrev} 
-                disabled={currentIndex === 0}
-                title="Previous revision"
-              >
-                <IconChevronLeft size={14} />
-              </button>
-              <span className="nav-info">
-                Rev {currentIndex + 1} of {totalRevisions}
-              </span>
-              <button 
-                className="nav-btn" 
-                onClick={handleNext} 
-                disabled={currentIndex === totalRevisions - 1}
-                title="Next revision"
-              >
-                <IconChevronRight size={14} />
-              </button>
+            <div className="fullscreen-viewer-selectors">
+              <div className="fullscreen-viewer-nav">
+                <button 
+                  className="nav-btn" 
+                  onClick={handlePrev} 
+                  disabled={currentIndex === 0}
+                  title="Previous revision (Older)"
+                >
+                  <IconChevronLeft size={14} />
+                </button>
+                <span className="nav-info">Rev {currentIndex + 1} of {totalRevisions}</span>
+                <button 
+                  className="nav-btn" 
+                  onClick={handleNext} 
+                  disabled={currentIndex === totalRevisions - 1}
+                  title="Next revision (Newer)"
+                >
+                  <IconChevronRight size={14} />
+                </button>
+              </div>
+
+              <div className="compare-selector">
+                <span className="compare-label">Compare with:</span>
+                <select 
+                  value={baseIndex ?? ""} 
+                  onChange={(e) => setBaseIndex(e.target.value === "" ? null : Number(e.target.value))}
+                  className="revision-select"
+                >
+                  <option value="">Prev Revision</option>
+                  {reversedHistoryIndices.map((i) => {
+                    if (i === currentIndex) return null;
+                    const s = fileHistory[i];
+                    const time = formatTime(s.metadata?.createdAt);
+                    return (
+                      <option key={i} value={i}>
+                        Rev {i + 1} {time ? `(${time})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
           )}
         </div>
@@ -152,7 +231,7 @@ export function FullscreenStepViewer({
         </button>
       </div>
       
-      <div className="fullscreen-viewer-body">
+      <div className="fullscreen-viewer-body" ref={codeRef}>
         {hasDiff ? (
           <div className="fullscreen-diff-container">
             <pre className="diff-content">
@@ -169,9 +248,12 @@ export function FullscreenStepViewer({
         ) : viewFileUri ? (
           <div className="fullscreen-content-container">
             <div className="file-content" style={{ padding: "24px 32px" }}>
-              <div>Viewed file: <code>{viewFileUri}</code></div>
-              <div style={{ color: "var(--text-tertiary)", marginTop: 8 }}>
-                File content is not stored in the language server step data.
+              <div style={{ fontSize: "15px", fontWeight: 500, marginBottom: "12px" }}>
+                Viewed file: <code>{viewFileUri}</code>
+              </div>
+              <div style={{ color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+                Full file snapshots are handled by the main editor. 
+                Use the Session Activity timeline to navigate through edit revisions that contain code diffs.
               </div>
             </div>
           </div>

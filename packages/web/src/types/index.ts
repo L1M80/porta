@@ -237,4 +237,11 @@ export interface ClientSettings {
   defaultModel: string | null;
   /** Planner type used when the user hasn't explicitly picked one per-message. */
   defaultPlannerType: "conversational" | "planning";
+  /** Activity timeline filters. */
+  activityFilters?: {
+    edits: boolean;
+    views: boolean;
+    commands: boolean;
+    search: boolean;
+  };
 }

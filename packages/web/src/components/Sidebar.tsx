@@ -27,6 +27,12 @@ interface Props {
   onToggle: () => void;
   /** Live steps from the active chat — used for Session Activity panel. */
   activitySteps?: TrajectoryStep[];
+  activityFilters?: {
+    edits: boolean;
+    views: boolean;
+    commands: boolean;
+    search: boolean;
+  };
   onStepClick?: (step: TrajectoryStep) => void;
 }
 
@@ -120,6 +126,7 @@ export function Sidebar({
   isOpen,
   onToggle,
   activitySteps = [],
+  activityFilters,
   onStepClick,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -423,7 +430,11 @@ export function Sidebar({
               flexShrink: 0,
             }}
           >
-            <SessionActivity steps={activitySteps} onStepClick={onStepClick} />
+            <SessionActivity
+              steps={activitySteps}
+              filters={activityFilters}
+              onStepClick={onStepClick}
+            />
           </div>
         )}
 

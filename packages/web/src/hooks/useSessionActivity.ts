@@ -143,9 +143,20 @@ export function deriveSessionActivity(steps: TrajectoryStep[]): SessionActivity 
     }
   });
 
+  const files = Array.from(fileMap.values())
+    .map(f => ({
+      ...f,
+      events: [...f.events].sort((a, b) => b.stepIndex - a.stepIndex)
+    }))
+    .sort((a, b) => {
+      const aMax = a.events.length > 0 ? a.events[0].stepIndex : -1;
+      const bMax = b.events.length > 0 ? b.events[0].stepIndex : -1;
+      return bMax - aMax;
+    });
+
   return {
-    files: Array.from(fileMap.values()),
-    commands,
+    files,
+    commands: [...commands].reverse(),
   };
 }
 

@@ -14,6 +14,12 @@ const STORAGE_KEY = "porta:settings";
 const DEFAULT_SETTINGS: ClientSettings = {
   defaultModel: DEFAULT_MODEL,
   defaultPlannerType: "conversational",
+  activityFilters: {
+    edits: true,
+    views: true,
+    commands: true,
+    search: true,
+  },
 };
 
 function readSettings(): ClientSettings {

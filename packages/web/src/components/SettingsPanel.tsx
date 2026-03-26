@@ -77,7 +77,16 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
   );
 
   const handleReset = useCallback(() => {
-    onUpdate({ defaultModel: null, defaultPlannerType: "conversational" });
+    onUpdate({
+      defaultModel: null,
+      defaultPlannerType: "conversational",
+      activityFilters: {
+        edits: true,
+        views: true,
+        commands: true,
+        search: true,
+      },
+    });
     flashSaved();
   }, [onUpdate, flashSaved]);
 
@@ -148,6 +157,48 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
               <option value="conversational">Fast</option>
               <option value="planning">Plan</option>
             </select>
+          </div>
+        </div>
+
+        {/* ── Session Activity ── */}
+        <div className="settings-section">
+          <h2 className="settings-section-title">Session Activity</h2>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Activity Filters</span>
+              <span className="settings-row-desc">
+                Choose which types of activity to show in the timeline.
+              </span>
+            </div>
+            <div className="settings-activity-filters">
+              {(["edits", "views", "commands", "search"] as const).map(
+                (key) => (
+                  <label key={key} className="filter-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={settings.activityFilters?.[key] ?? true}
+                      onChange={(e) => {
+                        onUpdate({
+                          activityFilters: {
+                            ...(settings.activityFilters ?? {
+                              edits: true,
+                              views: true,
+                              commands: true,
+                              search: true,
+                            }),
+                            [key]: e.target.checked,
+                          },
+                        });
+                        flashSaved();
+                      }}
+                    />
+                    <span>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </span>
+                  </label>
+                ),
+              )}
+            </div>
           </div>
         </div>
 
