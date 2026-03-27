@@ -34,7 +34,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.18
-        version: 4.0.18(@types/node@22.19.13)(happy-dom@20.8.3)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0)
+        version: 4.0.18(@types/node@22.19.13)(happy-dom@20.8.8)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0)
 
   packages/web:
     dependencies:
@@ -91,8 +91,8 @@ importers:
         specifier: ^16.5.0
         version: 16.5.0
       happy-dom:
-        specifier: ^20.8.3
-        version: 20.8.3
+        specifier: ^20.8.8
+        version: 20.8.8
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0
@@ -113,7 +113,7 @@ importers:
         version: 1.2.0(vite@7.3.1(@types/node@24.11.0)(terser@5.46.1)(tsx@4.21.0))(workbox-build@7.4.0)(workbox-window@7.4.0)
       vitest:
         specifier: ^4.0.18
-        version: 4.0.18(@types/node@24.11.0)(happy-dom@20.8.3)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0)
+        version: 4.0.18(@types/node@24.11.0)(happy-dom@20.8.8)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0)
 
 packages:
 
@@ -1843,8 +1843,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  happy-dom@20.8.3:
-    resolution: {integrity: sha512-lMHQRRwIPyJ70HV0kkFT7jH/gXzSI7yDkQFe07E2flwmNDFoWUTRMKpW2sglsnpeA7b6S2TJPp98EbQxai8eaQ==}
+  happy-dom@20.8.8:
+    resolution: {integrity: sha512-5/F8wxkNxYtsN0bXfMwIyNLZ9WYsoOYPbmoluqVJqv8KBUbcyKZawJ7uYK4WTX8IHBLYv+VXIwfeNDPy1oKMwQ==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -2881,6 +2881,18 @@ packages:
 
   ws@8.19.0:
     resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.20.0:
+    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -4794,14 +4806,14 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  happy-dom@20.8.3:
+  happy-dom@20.8.8:
     dependencies:
       '@types/node': 24.11.0
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
       entities: 7.0.1
       whatwg-mimetype: 3.0.0
-      ws: 8.19.0
+      ws: 8.20.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -5719,7 +5731,7 @@ snapshots:
       terser: 5.46.1
       tsx: 4.21.0
 
-  vitest@4.0.18(@types/node@22.19.13)(happy-dom@20.8.3)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0):
+  vitest@4.0.18(@types/node@22.19.13)(happy-dom@20.8.8)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0):
     dependencies:
       '@vitest/expect': 4.0.18
       '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@22.19.13)(terser@5.46.1)(tsx@4.21.0))
@@ -5743,7 +5755,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.19.13
-      happy-dom: 20.8.3
+      happy-dom: 20.8.8
       jsdom: 28.1.0
     transitivePeerDependencies:
       - jiti
@@ -5758,7 +5770,7 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@4.0.18(@types/node@24.11.0)(happy-dom@20.8.3)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0):
+  vitest@4.0.18(@types/node@24.11.0)(happy-dom@20.8.8)(jsdom@28.1.0)(terser@5.46.1)(tsx@4.21.0):
     dependencies:
       '@vitest/expect': 4.0.18
       '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@24.11.0)(terser@5.46.1)(tsx@4.21.0))
@@ -5782,7 +5794,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.11.0
-      happy-dom: 20.8.3
+      happy-dom: 20.8.8
       jsdom: 28.1.0
     transitivePeerDependencies:
       - jiti
@@ -5989,6 +6001,8 @@ snapshots:
       workbox-core: 7.4.0
 
   ws@8.19.0: {}
+
+  ws@8.20.0: {}
 
   xml-name-validator@5.0.0: {}
 
