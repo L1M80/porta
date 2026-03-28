@@ -23,7 +23,16 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: "autoUpdate",
         workbox: {
-          globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          // Only precache hashed static assets — NOT index.html.
+          // index.html must always come from the network so deploys
+          // take effect immediately. Hashed filenames (e.g. index-Ab12Cd.js)
+          // guarantee the SW cache entry matches the code version.
+          globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
+          skipWaiting: true,
+          clientsClaim: true,
+          // Don't create a NavigationRoute — let navigation requests
+          // hit the network (Cloudflare CDN) for a fresh index.html.
+          navigateFallback: null,
         },
         manifest: false, // Use our existing public/manifest.json
         injectRegister: "script-defer",

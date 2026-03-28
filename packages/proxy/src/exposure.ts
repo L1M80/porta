@@ -60,14 +60,37 @@ export function formatListenAddress(host: string, port: number): string {
   return `http://${printableHost}:${port}`;
 }
 
-export function assertSupportedListenHost(host: string): void {
+function isTailscaleIp(host: string): boolean {
+  const parts = host.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) {
+    return false;
+  }
+  const [a, b] = parts;
+  // Tailscale CGNAT range: 100.64.0.0/10
+  return a === 100 && b >= 64 && b <= 127;
+}
+
+export function assertSupportedListenHost(
+  host: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
   const normalized = host.trim().toLowerCase();
 
   if (isLoopbackHost(normalized) || isPrivateLanHost(normalized)) {
     return;
   }
 
-  if (normalized === "0.0.0.0" || normalized === "::" || normalized === "[::]") {
+  // Allow Tailscale IPs only if explicitly enabled via PORTA_TAILSCALE=1
+  // This avoids permanently relaxing the exposure guard for CGNAT IPs.
+  if (env.PORTA_TAILSCALE === "1" && isTailscaleIp(normalized)) {
+    return;
+  }
+
+  if (
+    normalized === "0.0.0.0" ||
+    normalized === "::" ||
+    normalized === "[::]"
+  ) {
     throw new Error(
       "Wildcard bind addresses are not supported. Set PORTA_HOST to 127.0.0.1 for local/Zero Trust use, or to an explicit private LAN IP.",
     );
