@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-28
+
+### Added
+
+- **Tailscale integration** — Zero-config remote access via `pnpm dev:tailscale` command (#17)
+  - Automatic Tailscale IP discovery and configuration
+  - Secure CGNAT range support (100.64.0.0/10) when explicitly enabled
+  - No VPN or complex configuration required
+
+### Security
+
+- Updated serialize-javascript to 7.0.5
+- Security dependency updates for npm packages (#15, #9, #3)
+
+### Changed
+
+- Improved CI/CD branch naming and PR title validation (#13, #4)
+
 ## [0.3.0] - 2026-03-14
 
 ### Added
@@ -76,7 +94,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/L1M80/porta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/L1M80/porta/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/L1M80/porta/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/L1M80/porta/releases/tag/v0.1.0
