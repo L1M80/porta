@@ -140,9 +140,15 @@ export async function discoverOwnerInstance(
     const wsOwners = candidates.filter(
       (c) => c.inst.workspaceId && normalizeWorkspaceId(c.inst.workspaceId) === normalWsId,
     );
-    if (wsOwners.length === 0) return null;
-    wsOwners.sort((a, b) => b.stepCount - a.stepCount);
-    return wsOwners[0].inst;
+    if (wsOwners.length > 0) {
+      wsOwners.sort((a, b) => b.stepCount - a.stepCount);
+      return wsOwners[0].inst;
+    }
+    // No LS matched by workspaceId — fall back to the candidate that
+    // actually holds the conversation (e.g. a "global" LS started
+    // without --workspace_id). Pick the one with the most steps.
+    candidates.sort((a, b) => b.stepCount - a.stepCount);
+    return candidates[0].inst;
   }
 
   // No workspace metadata.
@@ -212,7 +218,7 @@ export async function resolveAndCall<T>(
       } catch (err) {
         if (
           err instanceof RPCError &&
-          (err.code === "unavailable" || err.code === "not_found")
+          (err.code === "unavailable" || err.code === "not_found" || err.code === "unknown")
         ) {
           // Affinity LS is dead or lost the conversation — clear stale affinity and re-discover
           conversationAffinity.delete(cascadeId);
