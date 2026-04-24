@@ -211,9 +211,10 @@ Exposing your local API to the public internet can be dangerous. You can protect
 1. Go to your **Cloudflare Zero Trust** dashboard.
 2. Under **Access > Applications**, create an application to protect `<YOUR_API_SUBDOMAIN>`.
 3. Under **Access > Service Auth**, create a Service Token to generate a Client ID and Client Secret.
-4. In your `.env.production` file, rename `VITE_API_BASE` to `PORTA_API_BASE`. This prevents the frontend from hardcoding the API URL, forcing it to route through the Cloudflare Pages Edge proxy.
+4. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. This prevents the frontend from hardcoding the API URL, forcing it to use relative paths (`/api/*`) which route through the Cloudflare Pages Edge proxy.
 5. Go to your **Cloudflare Pages** dashboard for `<YOUR_PROJECT_NAME>`.
-6. Under **Settings > Environment variables**, add two variables to **both Production and Preview** environments:
+6. Under **Settings > Environment variables**, add **three** variables to **both Production and Preview** environments:
+   - `PORTA_API_BASE` (set this to your API URL, e.g., `https://<YOUR_API_SUBDOMAIN>`)
    - `CF_ACCESS_CLIENT_ID`
    - `CF_ACCESS_CLIENT_SECRET`
 7. Run `pnpm deploy` again to bake the new environment variables into the deployment.
