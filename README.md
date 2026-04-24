@@ -204,6 +204,22 @@ pnpm dev:cloud
 This reads `PORTA_TUNNEL_NAME` from `.env` and starts the proxy and
 `cloudflared tunnel run` together.
 
+### 6. Securing your API with Cloudflare Access (Zero Trust)
+
+Exposing your local API to the public internet can be dangerous. You can protect your API subdomain using Cloudflare Access (Zero Trust), and configure Porta's Edge proxy to securely authenticate.
+
+1. Go to your **Cloudflare Zero Trust** dashboard.
+2. Under **Access > Applications**, create an application to protect `<YOUR_API_SUBDOMAIN>`.
+3. Under **Access > Service Auth**, create a Service Token to generate a Client ID and Client Secret.
+4. In your `.env.production` file, rename `VITE_API_BASE` to `PORTA_API_BASE`. This prevents the frontend from hardcoding the API URL, forcing it to route through the Cloudflare Pages Edge proxy.
+5. Go to your **Cloudflare Pages** dashboard for `<YOUR_PROJECT_NAME>`.
+6. Under **Settings > Environment variables**, add two variables to **both Production and Preview** environments:
+   - `CF_ACCESS_CLIENT_ID`
+   - `CF_ACCESS_CLIENT_SECRET`
+7. Run `pnpm deploy` again to bake the new environment variables into the deployment.
+
+The Cloudflare Pages Function will now automatically inject these headers securely from the server side, allowing your frontend to bypass Cloudflare Access while keeping your API completely hidden from the public.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow, branch
