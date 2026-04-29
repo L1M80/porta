@@ -20,12 +20,9 @@ export const onRequest: any = async (context: any) => {
 
     const headers = new Headers(request.headers);
 
-    // Optionally inject Cloudflare Access credentials if provided in the environment.
-    // This allows secure server-to-server communication without exposing secrets to the browser.
-    if (env.CF_ACCESS_CLIENT_ID) {
+    // 1. Inject Cloudflare Access Service Token credentials (if configured).
+    if (env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET) {
         headers.set("CF-Access-Client-Id", env.CF_ACCESS_CLIENT_ID);
-    }
-    if (env.CF_ACCESS_CLIENT_SECRET) {
         headers.set("CF-Access-Client-Secret", env.CF_ACCESS_CLIENT_SECRET);
     }
 
@@ -37,8 +34,19 @@ export const onRequest: any = async (context: any) => {
         method: request.method,
         headers,
         body: request.method !== "GET" && request.method !== "HEAD" ? request.body : null,
-        redirect: "manual",
+        redirect: "manual"
     });
 
-    return fetch(newRequest);
+    const response = await fetch(newRequest);
+
+    // Clone the response so we can modify the headers
+    const finalResponse = new Response(response.body, response);
+    
+    // CRITICAL FIX: Cloudflare Access on the API backend might return a `Set-Cookie: CF_Authorization` 
+    // because it processed the request. If we forward this cookie back to the browser, it OVERWRITES 
+    // the user's frontend CF_Authorization cookie, immediately corrupting their frontend session!
+    // This causes all subsequent frontend requests to be rejected by Cloudflare Access with a 302/403.
+    finalResponse.headers.delete("Set-Cookie");
+    
+    return finalResponse;
 };

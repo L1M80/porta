@@ -206,20 +206,41 @@ This reads `PORTA_TUNNEL_NAME` from `.env` and starts the proxy and
 
 ### 6. Securing your API with Cloudflare Access (Zero Trust)
 
-Exposing your local API to the public internet can be dangerous. You can protect your API subdomain using Cloudflare Access (Zero Trust), and configure Porta's Edge proxy to securely authenticate.
+Exposing your local API to the public internet can be dangerous. To completely lock down your setup, you should protect **both** your frontend and your API using Cloudflare Access. 
 
-1. Go to your **Cloudflare Zero Trust** dashboard.
-2. Under **Access > Applications**, create an application to protect `<YOUR_API_SUBDOMAIN>`.
-3. Under **Access > Service Auth**, create a Service Token to generate a Client ID and Client Secret.
-4. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. This prevents the frontend from hardcoding the API URL, forcing it to use relative paths (`/api/*`) which route through the Cloudflare Pages Edge proxy.
-5. Go to your **Cloudflare Pages** dashboard for `<YOUR_PROJECT_NAME>`.
-6. Under **Settings > Environment variables**, add **three** variables to **both Production and Preview** environments:
-   - `PORTA_API_BASE` (set this to your API URL, e.g., `https://<YOUR_API_SUBDOMAIN>`)
-   - `CF_ACCESS_CLIENT_ID`
-   - `CF_ACCESS_CLIENT_SECRET`
-7. Run `pnpm deploy` again to bake the new environment variables into the deployment.
+Porta's built-in Edge Proxy securely bridges the two by injecting Machine-to-Machine authentication tokens, completely hiding your backend from the internet.
 
-The Cloudflare Pages Function will now automatically inject these headers securely from the server side, allowing your frontend to bypass Cloudflare Access while keeping your API completely hidden from the public.
+To set this up, follow these precise steps:
+
+**1. Create Two Separate Applications**
+In your **Cloudflare Zero Trust** dashboard, under **Access > Applications**, you must create **two** distinct applications:
+- **Frontend App**: Protects your Pages deployment (e.g., `https://<YOUR_PAGES_DOMAIN>`). Configure this with standard user login policies (e.g., email OTP).
+- **Backend API App**: Protects your Tunnel (e.g., `https://<YOUR_API_SUBDOMAIN>`). 
+
+**2. Generate Service Tokens**
+1. Navigate to **Access > Service Auth**.
+2. Create a new Service Token for Porta. This will generate a **Client ID** and **Client Secret**.
+
+**3. Add the Service Auth Policy to the Backend API**
+1. Open the **Backend API App** you created in Step 1.
+2. Go to the **Policies** tab and add a new policy.
+3. Set the action to **Service Auth**.
+4. In the rules, configure it to **Include > Service Token** and select the token you just created.
+
+**4. Configure Cloudflare Pages Environment Variables**
+1. Go to your **Cloudflare Pages** dashboard for `<YOUR_PROJECT_NAME>`.
+2. Under **Settings > Environment variables**, add the following **three** variables to **both Production and Preview** environments:
+   - `PORTA_API_BASE`: Set this to your exact API URL (e.g., `https://<YOUR_API_SUBDOMAIN>`).
+   - `CF_ACCESS_CLIENT_ID`: The Client ID from Step 2.
+   - `CF_ACCESS_CLIENT_SECRET`: The Client Secret from Step 2.
+
+**5. Route Frontend Traffic Through the Proxy**
+By default, the Porta frontend tries to fetch the API directly. To force it to use the secure Edge Proxy:
+1. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. 
+2. Without `VITE_API_BASE`, the frontend falls back to relative paths (`/api/*`), routing traffic through the Cloudflare Pages Edge proxy.
+3. Run `pnpm deploy` again.
+
+> **Backwards Compatibility Note:** If `VITE_API_BASE` is defined, the frontend will bypass the proxy entirely and attempt to communicate directly with the backend. This is fully supported and recommended for local development (LAN access) or deployments where the backend is not protected by Cloudflare Access. Additionally, the proxy will gracefully skip Service Token injection if the `CF_ACCESS_CLIENT_ID` environment variables are missing.
 
 ## Contributing
 
