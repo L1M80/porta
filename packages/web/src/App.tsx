@@ -76,7 +76,7 @@ function ChatView() {
   const activeId = chatId ?? null;
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 480);
   const isMobile = () => window.innerWidth <= 480;
-  const { conversations, loading, refresh } = useConversations(15_000);
+  const { conversations, loading, refresh, optimisticRemove } = useConversations(15_000);
   const { data: health } = usePolling<HealthResponse>(api.health, 30_000);
 
   // ── Hooks ──
@@ -110,6 +110,7 @@ function ChatView() {
     projectSlug,
     refresh,
     conversations,
+    optimisticRemove,
   });
 
   // Wire handleRevert to also update draft text
