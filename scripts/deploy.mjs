@@ -9,12 +9,13 @@ if (!project) {
   process.exit(1);
 }
 
-function run(command, args) {
+function run(command, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       env: process.env,
       stdio: "inherit",
       windowsHide: true,
+      ...opts,
     });
 
     child.on("error", reject);
@@ -33,7 +34,7 @@ await run(commandName("npx"), [
   "wrangler",
   "pages",
   "deploy",
-  "./packages/web/dist",
+  "./dist",
   `--project-name=${project}`,
   "--branch=main",
-]);
+], { cwd: "./packages/web" });
