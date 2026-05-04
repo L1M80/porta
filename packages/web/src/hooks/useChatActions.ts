@@ -19,6 +19,7 @@ interface UseChatActionsArgs {
       workspaces?: { workspaceFolderAbsoluteUri?: string }[];
     };
   }[];
+  optimisticRemove?: (id: string) => void;
 }
 
 interface UseChatActionsResult {
@@ -54,6 +55,7 @@ export function useChatActions({
   projectSlug,
   refresh,
   conversations,
+  optimisticRemove,
 }: UseChatActionsArgs): UseChatActionsResult {
   const navigate = useNavigate();
 
@@ -203,6 +205,7 @@ export function useChatActions({
     async (id: string) => {
       try {
         await api.deleteConversation(id);
+        optimisticRemove?.(id);
         if (activeId === id) {
           navigate(`/${projectSlug ?? "unknown"}`);
         }
@@ -211,7 +214,7 @@ export function useChatActions({
         console.error("Failed to delete:", err);
       }
     },
-    [activeId, refresh, navigate, projectSlug],
+    [activeId, refresh, navigate, projectSlug, optimisticRemove],
   );
 
   const triggerSoftRefresh = useCallback(() => {

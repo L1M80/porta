@@ -45,6 +45,10 @@ export default defineConfig(({ mode }) => {
           target: toHttpOrigin(proxyHost, proxyPort),
           changeOrigin: true,
           ws: true,
+          headers: {
+            ...(env.CF_ACCESS_CLIENT_ID ? { "CF-Access-Client-Id": env.CF_ACCESS_CLIENT_ID } : {}),
+            ...(env.CF_ACCESS_CLIENT_SECRET ? { "CF-Access-Client-Secret": env.CF_ACCESS_CLIENT_SECRET } : {}),
+          },
         },
       },
     },
