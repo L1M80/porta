@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/L1M80/porta/actions/workflows/ci.yml/badge.svg)](https://github.com/L1M80/porta/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-0.1.0-green)
+![Version](https://img.shields.io/badge/version-0.5.0-green)
 
 Remote web interface for [Antigravity](https://antigravity.google/) Agent Manager.  
 Access your local Antigravity sessions from your phone, tablet, or any remote browser through a lightweight LSP bridge.

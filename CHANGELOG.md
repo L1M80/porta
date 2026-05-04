@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-04
+
+### Added
+
+- **Cloudflare Access secured API proxy** — Cloudflare Pages can now route
+  relative `/api/*` requests through a Pages Function that injects
+  server-side Cloudflare Access service token headers for the protected backend
+  API. The setup documentation now requires protecting both the Pages frontend
+  and backend API with Cloudflare Access. (#40)
+- Local Vite dev proxy support for `CF_ACCESS_CLIENT_ID` and
+  `CF_ACCESS_CLIENT_SECRET`, making protected API development easier. (#40)
+
+### Fixed
+
+- **Deleted conversations now disappear from the sidebar immediately** after a
+  successful delete request, instead of waiting for the next full refresh. (#42)
+- Cloudflare Pages deploys now run Wrangler from the web package directory and
+  deploy `./dist`, matching the Pages Functions layout. (#40)
+- The Pages API proxy strips upstream `Set-Cookie` headers so backend
+  Cloudflare Access cookies cannot overwrite the frontend Access session. (#40)
+
+### Security
+
+- Bumped `happy-dom` and related transitive dependencies. (#35)
+
+## [0.4.0] - 2026-03-28
+
+### Added
+
+- **Zero-config remote access via Tailscale** — new `pnpm dev:tailscale`
+  command discovers the Tailscale IPv4 address, binds the proxy and web app to
+  it, and configures CORS for the Tailscale origin. (#34)
+
+### Changed
+
+- The exposure guard now permits Tailscale CGNAT addresses only when explicitly
+  enabled with `PORTA_TAILSCALE=1`. (#34)
+
 ## [0.3.0] - 2026-03-14
 
 ### Added
@@ -76,7 +114,9 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/L1M80/porta/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/L1M80/porta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/L1M80/porta/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/L1M80/porta/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/L1M80/porta/releases/tag/v0.1.0
