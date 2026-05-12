@@ -584,8 +584,8 @@ export function registerConversationRoutes(app: Hono): void {
           interaction: {
             trajectoryId,
             stepIndex: Number(stepIndex),
-            commandAction: {
-              approved: !!approved,
+            permission: {
+              allow: !!approved,
             },
           },
         },
