@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-12
+
+### Fixed
+
+- **Terminal command approvals now use the current Antigravity LS interaction
+  shape** by sending `permission.allow` to `HandleCascadeUserInteraction`,
+  fixing `unexpected user interaction type: not permission` errors when
+  approving or rejecting proposed commands. (#47)
+
 ## [0.5.0] - 2026-05-04
 
 ### Added
@@ -114,7 +123,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/L1M80/porta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/L1M80/porta/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/L1M80/porta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/L1M80/porta/compare/v0.2.0...v0.3.0
