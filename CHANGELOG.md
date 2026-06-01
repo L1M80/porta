@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-02
+
+### Fixed
+
+- **Antigravity 2.x conversation metadata is now normalized** so workspace and
+  conversation history discovery continues to work when the Language Server
+  reports workspaces under `trajectoryMetadata`. (#56, #57)
+- **Localized Windows `netstat` output is now parsed without relying on the
+  English `LISTENING` state**, fixing local Language Server discovery on
+  non-English Windows installations. (#52, #59)
+
+### Security
+
+- Bumped vulnerable `brace-expansion` transitive dependency versions in the
+  lockfiles. (#53, #54)
+
 ## [0.6.0] - 2026-05-12
 
 ### Fixed
@@ -123,7 +139,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/L1M80/porta/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/L1M80/porta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/L1M80/porta/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/L1M80/porta/compare/v0.3.0...v0.4.0
