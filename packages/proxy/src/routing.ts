@@ -6,6 +6,7 @@
  */
 
 import { LSDiscovery, type LSInstance } from "./discovery.js";
+import { getPrimaryWorkspaceUri } from "./metadata.js";
 import { RPCClient, RPCError } from "./rpc.js";
 
 // Module-scoped singletons — shared by all route modules
@@ -18,6 +19,7 @@ export const rpc = new RPCClient(discovery);
  * and used to route RPC calls to the correct LS instance.
  */
 export const conversationAffinity = new Map<string, string>(); // cascadeId → workspaceId
+export const conversationInstanceAffinity = new Map<string, LSInstance>(); // cascadeId → unscoped hub LS
 
 /** Convert a workspace URI to the LS workspaceId format. */
 export function uriToWorkspaceId(uri: string): string {
@@ -109,7 +111,8 @@ export async function discoverOwnerInstance(
             {
               stepCount?: number;
               status?: string;
-              workspaces?: { workspaceFolderAbsoluteUri?: string }[];
+              trajectoryMetadata?: unknown;
+              workspaces?: unknown[];
             }
           >;
         }>("GetAllCascadeTrajectories", {}, inst);
@@ -119,7 +122,7 @@ export async function discoverOwnerInstance(
           inst,
           stepCount: summary.stepCount ?? 0,
           status: (summary.status as string) ?? "",
-          wsUri: summary.workspaces?.[0]?.workspaceFolderAbsoluteUri,
+          wsUri: getPrimaryWorkspaceUri(summary),
         });
       } catch {
         // Skip unreachable instances
@@ -140,9 +143,32 @@ export async function discoverOwnerInstance(
     const wsOwners = candidates.filter(
       (c) => c.inst.workspaceId && normalizeWorkspaceId(c.inst.workspaceId) === normalWsId,
     );
-    if (wsOwners.length === 0) return null;
-    wsOwners.sort((a, b) => b.stepCount - a.stepCount);
-    return wsOwners[0].inst;
+    if (wsOwners.length > 0) {
+      wsOwners.sort((a, b) => b.stepCount - a.stepCount);
+      return wsOwners[0].inst;
+    }
+
+    // Antigravity 2.x can expose a standalone hub LS without a workspaceId.
+    // When exactly one unscoped LS reports this workspace-backed conversation,
+    // that LS is the only concrete owner signal available and is safe for both
+    // reads and writes. If multiple unscoped LSes report it, only reads may use
+    // the heuristic ranking below; writes stay conservative.
+    const unscopedOwners = candidates.filter((c) => !c.inst.workspaceId);
+    if (unscopedOwners.length === 1) {
+      conversationInstanceAffinity.set(cascadeId, unscopedOwners[0].inst);
+      return unscopedOwners[0].inst;
+    }
+    if (readOnly && unscopedOwners.length > 1) {
+      unscopedOwners.sort((a, b) => {
+        const aRunning = a.status === RUNNING_STATUS ? 1 : 0;
+        const bRunning = b.status === RUNNING_STATUS ? 1 : 0;
+        if (aRunning !== bRunning) return bRunning - aRunning;
+        return b.stepCount - a.stepCount;
+      });
+      conversationInstanceAffinity.set(cascadeId, unscopedOwners[0].inst);
+      return unscopedOwners[0].inst;
+    }
+    return null;
   }
 
   // No workspace metadata.
@@ -156,6 +182,15 @@ export async function discoverOwnerInstance(
   // A RUNNING LS is definitively the active owner (only one LS can execute
   // a conversation at a time). Affinity is NOT learned because we don't
   // know the workspace URI.
+  if (
+    !readOnly &&
+    candidates.length === 1 &&
+    !candidates[0].inst.workspaceId
+  ) {
+    conversationInstanceAffinity.set(cascadeId, candidates[0].inst);
+    return candidates[0].inst;
+  }
+
   if (!readOnly) return null;
 
   candidates.sort((a, b) => {
@@ -196,6 +231,32 @@ export async function resolveAndCall<T>(
   const instances = await discovery.getInstances();
   if (instances.length === 0) {
     throw new RPCError("No LS instances available", "unavailable");
+  }
+
+  const cachedInstance = conversationInstanceAffinity.get(cascadeId);
+  if (cachedInstance) {
+    const current = instances.find(
+      (i) =>
+        i.pid === cachedInstance.pid &&
+        i.httpsPort === cachedInstance.httpsPort,
+    );
+    if (current) {
+      try {
+        const data = await rpc.call<T>(method, body, current);
+        return { data, instance: current };
+      } catch (err) {
+        if (
+          err instanceof RPCError &&
+          (err.code === "unavailable" || err.code === "not_found")
+        ) {
+          conversationInstanceAffinity.delete(cascadeId);
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      conversationInstanceAffinity.delete(cascadeId);
+    }
   }
 
   // Try the affinity LS first

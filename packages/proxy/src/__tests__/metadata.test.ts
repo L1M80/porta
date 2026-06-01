@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getMetadata } from "../metadata.js";
+import {
+  extractConversationWorkspaces,
+  getMetadata,
+  getPrimaryWorkspaceUri,
+  withNormalizedConversationWorkspaces,
+} from "../metadata.js";
 
 describe("getMetadata", () => {
   it("returns base fields without file access", async () => {
@@ -29,5 +34,59 @@ describe("getMetadata", () => {
     const b = await getMetadata();
     expect(a).not.toBe(b);
     expect(a).toEqual(b);
+  });
+});
+
+describe("conversation workspace metadata helpers", () => {
+  it("extracts top-level workspace metadata", () => {
+    const summary = {
+      workspaces: [
+        {
+          workspaceFolderAbsoluteUri: "file:///home/user/project",
+          gitRootAbsoluteUri: "file:///home/user/project",
+          repository: { computedName: "local/project" },
+          branchName: "main",
+        },
+      ],
+    };
+
+    expect(getPrimaryWorkspaceUri(summary)).toBe("file:///home/user/project");
+    expect(extractConversationWorkspaces(summary)[0]).toEqual({
+      workspaceFolderAbsoluteUri: "file:///home/user/project",
+      gitRootAbsoluteUri: "file:///home/user/project",
+      repository: { computedName: "local/project" },
+      branchName: "main",
+    });
+  });
+
+  it("falls back to trajectoryMetadata.workspaces", () => {
+    const summary = {
+      trajectoryMetadata: {
+        workspaces: [
+          { workspaceFolderAbsoluteUri: "file:///tmp/from-metadata" },
+        ],
+      },
+    };
+
+    expect(getPrimaryWorkspaceUri(summary)).toBe("file:///tmp/from-metadata");
+    const normalized = withNormalizedConversationWorkspaces(
+      summary as Record<string, unknown>,
+    );
+
+    expect(normalized.workspaces).toEqual([
+      { workspaceFolderAbsoluteUri: "file:///tmp/from-metadata" },
+    ]);
+  });
+
+  it("falls back to trajectoryMetadata.workspaceUris", () => {
+    const summary = {
+      trajectoryMetadata: {
+        workspaceUris: ["file:///tmp/from-uri"],
+      },
+    };
+
+    expect(extractConversationWorkspaces(summary)).toEqual([
+      { workspaceFolderAbsoluteUri: "file:///tmp/from-uri" },
+    ]);
   });
 });
