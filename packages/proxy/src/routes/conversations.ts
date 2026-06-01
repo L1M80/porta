@@ -8,12 +8,19 @@ import {
   discovery,
   rpc,
   conversationAffinity,
+  conversationInstanceAffinity,
   uriToWorkspaceId,
   normalizeWorkspaceId,
   rpcForConversation,
   getStepCount,
 } from "../routing.js";
-import { getMetadata, scanDiskConversations } from "../metadata.js";
+import {
+  extractConversationWorkspaces,
+  getMetadata,
+  getPrimaryWorkspaceUri,
+  scanDiskConversations,
+  withNormalizedConversationWorkspaces,
+} from "../metadata.js";
 import { handleRPCError } from "../errors.js";
 import { runConversationMutation } from "../conversation-mutations.js";
 import {
@@ -35,6 +42,55 @@ const warmedAt = new Map<string, number>();
  *  This handles LS restarts (conversations fall out of memory) and
  *  transient failures without manual intervention. */
 const WARM_TTL_MS = 60_000;
+
+function requestedWorkspaceUris(body: Record<string, unknown>): string[] {
+  if (!Array.isArray(body.workspaceUris)) return [];
+  return body.workspaceUris.filter(
+    (uri): uri is string => typeof uri === "string" && uri.length > 0,
+  );
+}
+
+async function discoverSingleWorkspaceUri(
+  instances: LSInstance[],
+): Promise<string | undefined> {
+  const byWorkspaceId = new Map<string, string>();
+  const addUri = (uri: string | undefined) => {
+    if (!uri) return;
+    byWorkspaceId.set(normalizeWorkspaceId(uriToWorkspaceId(uri)), uri);
+  };
+
+  await Promise.allSettled(
+    instances.map(async (inst) => {
+      try {
+        const data = (await rpc.call("GetWorkspaceInfos", {}, inst)) as {
+          workspaceInfos?: { workspaceUri?: string }[];
+        };
+        for (const info of data.workspaceInfos ?? []) addUri(info.workspaceUri);
+      } catch {
+        // Fallback below can still recover workspace metadata from summaries.
+      }
+    }),
+  );
+
+  await Promise.allSettled(
+    instances.map(async (inst) => {
+      try {
+        const data = await rpc.call<{
+          trajectorySummaries?: Record<string, Record<string, unknown>>;
+        }>("GetAllCascadeTrajectories", {}, inst);
+        for (const summary of Object.values(data.trajectorySummaries ?? {})) {
+          for (const workspace of extractConversationWorkspaces(summary)) {
+            addUri(workspace.workspaceFolderAbsoluteUri);
+          }
+        }
+      } catch {
+        // If summaries are unavailable, keep whatever GetWorkspaceInfos found.
+      }
+    }),
+  );
+
+  return byWorkspaceId.size === 1 ? [...byWorkspaceId.values()][0] : undefined;
+}
 
 /**
  * Fire-and-forget: touch each disk-only conversation on every LS so the LS
@@ -113,7 +169,6 @@ export function registerConversationRoutes(app: Hono): void {
     try {
       const instances = await discovery.getInstances();
       const merged: Record<string, Record<string, unknown>> = {};
-      const ownerMap = new Map<string, LSInstance>();
 
       // Build normalized set of workspaceIds served by running LS instances.
       // Normalization handles format differences between CLI --workspace_id
@@ -133,12 +188,22 @@ export function registerConversationRoutes(app: Hono): void {
             }>("GetAllCascadeTrajectories", {}, inst);
             const summaries = data.trajectorySummaries ?? {};
             for (const [id, summary] of Object.entries(summaries)) {
-              // Skip conversations whose workspace isn't served by any running LS
-              const workspaces = summary.workspaces as
-                | { workspaceFolderAbsoluteUri?: string }[]
-                | undefined;
-              const wsUri = workspaces?.[0]?.workspaceFolderAbsoluteUri;
-              if (wsUri && !knownWsIds.has(normalizeWorkspaceId(uriToWorkspaceId(wsUri)))) continue;
+              const normalizedSummary =
+                withNormalizedConversationWorkspaces(summary);
+              const wsUri = getPrimaryWorkspaceUri(normalizedSummary);
+
+              // Skip conversations whose workspace isn't served by any scoped
+              // running LS. Antigravity 2.x exposes a hub LS with no
+              // workspaceId; in that mode GetWorkspaceInfos has no
+              // workspaceInfos, but GetAllCascadeTrajectories still contains
+              // conversation workspace metadata. Such unscoped LS results must
+              // pass through.
+              if (
+                inst.workspaceId &&
+                wsUri &&
+                !knownWsIds.has(normalizeWorkspaceId(uriToWorkspaceId(wsUri)))
+              )
+                continue;
 
               // NOTE: We intentionally do NOT inject the LS's workspace URI
               // into conversations that lack one. With warm-up loading .pb
@@ -148,11 +213,10 @@ export function registerConversationRoutes(app: Hono): void {
               // returns it with genuine metadata on the next poll cycle.
 
               const existing = merged[id];
-              const newCount = (summary.stepCount as number) ?? 0;
+              const newCount = (normalizedSummary.stepCount as number) ?? 0;
               const oldCount = (existing?.stepCount as number) ?? -1;
               if (!existing || newCount > oldCount) {
-                merged[id] = summary;
-                ownerMap.set(id, inst);
+                merged[id] = normalizedSummary;
               }
             }
           } catch {
@@ -163,15 +227,12 @@ export function registerConversationRoutes(app: Hono): void {
 
       // Update affinity cache from merged results
       for (const [id, summary] of Object.entries(merged)) {
-        const workspaces = summary.workspaces as
-          | { workspaceFolderAbsoluteUri?: string }[]
-          | undefined;
-        const wsUri = workspaces?.[0]?.workspaceFolderAbsoluteUri;
+        const wsUri = getPrimaryWorkspaceUri(summary);
         if (wsUri) {
           conversationAffinity.set(id, uriToWorkspaceId(wsUri));
         }
-        // NOTE: We intentionally do NOT learn affinity from the ownerMap
-        // when the conversation has no workspace metadata. With warm-up,
+        // NOTE: We intentionally do NOT learn affinity from the LS that returned
+        // the summary when the conversation has no workspace metadata. With warm-up,
         // the owning LS is not necessarily the one that returned the summary.
         // Affinity is only learned from genuine workspace metadata in the
         // conversation itself — either from the .pb or from the LS that
@@ -348,20 +409,31 @@ export function registerConversationRoutes(app: Hono): void {
 
   app.post("/api/conversations", async (c) => {
     try {
-      const body = await c.req.json().catch(() => ({}));
+      const body = ((await c.req.json().catch(() => ({}))) ?? {}) as Record<
+        string,
+        unknown
+      >;
       const metadata = await getMetadata(!!body.fileAccessGranted);
 
-      let workspaceUri: string | undefined = body.workspaceFolderAbsoluteUri;
+      const bodyWorkspaceUris = requestedWorkspaceUris(body);
+      let workspaceUri: string | undefined =
+        typeof body.workspaceFolderAbsoluteUri === "string"
+          ? body.workspaceFolderAbsoluteUri
+          : bodyWorkspaceUris[0];
+      const instances = await discovery.getInstances();
 
       // Resolve which LS instance to use based on workspace URI
       let targetInstance: LSInstance | undefined;
       if (workspaceUri) {
         const wsId = normalizeWorkspaceId(uriToWorkspaceId(workspaceUri));
-        const instances = await discovery.getInstances();
         targetInstance =
           instances.find(
             (i) => i.workspaceId && normalizeWorkspaceId(i.workspaceId) === wsId,
           ) ?? undefined;
+        targetInstance ??=
+          instances.filter((i) => !i.workspaceId).length === 1
+            ? instances.find((i) => !i.workspaceId)
+            : undefined;
 
         // Workspace was explicitly requested but no LS owns it — fail clearly
         if (!targetInstance) {
@@ -376,27 +448,30 @@ export function registerConversationRoutes(app: Hono): void {
         }
       } else {
         // No workspace specified — pick first available LS and auto-inject
-        targetInstance = (await discovery.getInstance()) ?? undefined;
-        try {
-          const wsInfos = (await rpc.call(
-            "GetWorkspaceInfos",
-            {},
-            targetInstance,
-          )) as {
-            workspaceInfos?: { workspaceUri: string }[];
-          };
-          workspaceUri = wsInfos.workspaceInfos?.[0]?.workspaceUri;
-        } catch {
-          // best-effort — proceed without workspace
-        }
+        targetInstance = instances[0];
+        workspaceUri = await discoverSingleWorkspaceUri(instances);
       }
+
+      const startWorkspaceUris =
+        bodyWorkspaceUris.length > 0
+          ? bodyWorkspaceUris
+          : workspaceUri
+            ? [workspaceUri]
+            : [];
 
       const data = await rpc.call(
         "StartCascade",
         {
           ...body,
           metadata,
+          source:
+            typeof body.source === "string"
+              ? body.source
+              : "CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT",
           ...(workspaceUri ? { workspaceFolderAbsoluteUri: workspaceUri } : {}),
+          ...(startWorkspaceUris.length > 0
+            ? { workspaceUris: startWorkspaceUris }
+            : {}),
         },
         targetInstance,
       );
@@ -405,8 +480,13 @@ export function registerConversationRoutes(app: Hono): void {
       const newId = (data as Record<string, unknown>)?.cascadeId as
         | string
         | undefined;
-      if (newId && targetInstance?.workspaceId) {
+      if (newId && workspaceUri) {
+        conversationAffinity.set(newId, uriToWorkspaceId(workspaceUri));
+      } else if (newId && targetInstance?.workspaceId) {
         conversationAffinity.set(newId, targetInstance.workspaceId);
+      }
+      if (newId && targetInstance && !targetInstance.workspaceId) {
+        conversationInstanceAffinity.set(newId, targetInstance);
       }
 
       // Signal WS connections for this conversation to enter ACTIVE state

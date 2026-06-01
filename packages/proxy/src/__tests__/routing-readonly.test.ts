@@ -44,6 +44,7 @@ const {
   resolveAndCall,
   getStepCount,
   conversationAffinity,
+  conversationInstanceAffinity,
   discoverOwnerInstance,
 } = await import("../routing.js");
 
@@ -63,6 +64,7 @@ describe("discoverOwnerInstance", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
   });
 
   it("returns null when no LS knows about the conversation", async () => {
@@ -88,6 +90,64 @@ describe("discoverOwnerInstance", () => {
     // Works for both readOnly=true and readOnly=false
     expect(await discoverOwnerInstance("c1", [ownerLS, otherLS], true)).toBe(ownerLS);
     expect(await discoverOwnerInstance("c1", [ownerLS, otherLS], false)).toBe(ownerLS);
+  });
+
+  it("routes to a single unscoped hub LS when workspace metadata is present", async () => {
+    const hubLS = makeInstance({ pid: 4, workspaceId: undefined });
+
+    mockRpcCall.mockResolvedValue({
+      trajectorySummaries: {
+        "c-hub": {
+          stepCount: 30,
+          status: "CASCADE_RUN_STATUS_IDLE",
+          workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/projectA" }],
+        },
+      },
+    });
+
+    expect(await discoverOwnerInstance("c-hub", [hubLS], true)).toBe(hubLS);
+    expect(await discoverOwnerInstance("c-hub", [hubLS], false)).toBe(hubLS);
+  });
+
+  it("keeps writes conservative when multiple unscoped LSes report a workspace-backed conversation", async () => {
+    const hubA = makeInstance({ pid: 5, workspaceId: undefined });
+    const hubB = makeInstance({ pid: 6, workspaceId: undefined });
+
+    mockRpcCall.mockResolvedValue({
+      trajectorySummaries: {
+        "c-ambiguous": {
+          stepCount: 30,
+          status: "CASCADE_RUN_STATUS_IDLE",
+          workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/projectA" }],
+        },
+      },
+    });
+
+    expect(
+      await discoverOwnerInstance("c-ambiguous", [hubA, hubB], false),
+    ).toBeNull();
+  });
+
+  it("uses RUNNING status for read-only resolution when multiple unscoped LSes report metadata", async () => {
+    const idleLS = makeInstance({ pid: 7, workspaceId: undefined });
+    const runningLS = makeInstance({ pid: 8, workspaceId: undefined });
+
+    mockRpcCall.mockImplementation(async (_method: string, _body: unknown, inst: LSInstance) => ({
+      trajectorySummaries: {
+        "c-read-hub": {
+          stepCount: inst === idleLS ? 100 : 50,
+          status:
+            inst === runningLS
+              ? "CASCADE_RUN_STATUS_RUNNING"
+              : "CASCADE_RUN_STATUS_IDLE",
+          workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/projectA" }],
+        },
+      },
+    }));
+
+    expect(
+      await discoverOwnerInstance("c-read-hub", [idleLS, runningLS], true),
+    ).toBe(runningLS);
   });
 
   it("picks RUNNING LS when readOnly=true and no workspace metadata", async () => {
@@ -135,6 +195,24 @@ describe("discoverOwnerInstance", () => {
     // Even though a RUNNING LS exists, write path must NOT use heuristics
     const owner = await discoverOwnerInstance("c-write-safe", [staleLS, runningLS], false);
     expect(owner).toBeNull();
+  });
+
+  it("routes writes to a single unscoped hub LS even without workspace metadata", async () => {
+    const hubLS = makeInstance({ pid: 12, workspaceId: undefined });
+
+    mockRpcCall.mockResolvedValue({
+      trajectorySummaries: {
+        "c-new-empty": {
+          stepCount: 0,
+          status: "CASCADE_RUN_STATUS_IDLE",
+        },
+      },
+    });
+
+    expect(await discoverOwnerInstance("c-new-empty", [hubLS], false)).toBe(
+      hubLS,
+    );
+    expect(conversationInstanceAffinity.get("c-new-empty")).toBe(hubLS);
   });
 
   it("picks RUNNING LS even with lower stepCount (readOnly=true)", async () => {
@@ -219,6 +297,7 @@ describe("resolveAndCall write-path safety (mutation misrouting prevention)", ()
   beforeEach(() => {
     vi.clearAllMocks();
     conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
   });
 
   it("rejects mutations when conversation has no workspace metadata (warm-up loaded)", async () => {
@@ -255,6 +334,61 @@ describe("resolveAndCall write-path safety (mutation misrouting prevention)", ()
         false,
       ),
     ).rejects.toThrow("not found on any Language Server");
+  });
+
+  it("allows mutations through a single unscoped hub LS with workspace metadata", async () => {
+    const hubLS = makeInstance({ pid: 72, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    mockRpcCall.mockImplementation(async (method: string) => {
+      if (method === "GetAllCascadeTrajectories") {
+        return {
+          trajectorySummaries: {
+            "cascade-hub": {
+              stepCount: 50,
+              status: "CASCADE_RUN_STATUS_IDLE",
+              workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/proj" }],
+            },
+          },
+        };
+      }
+      return { ok: true };
+    });
+
+    await expect(
+      resolveAndCall(
+        "SendUserCascadeMessage",
+        "cascade-hub",
+        { cascadeId: "cascade-hub", items: [] },
+        undefined,
+        false,
+      ),
+    ).resolves.toMatchObject({ data: { ok: true }, instance: hubLS });
+  });
+
+  it("uses cached unscoped hub ownership for follow-up writes after StartCascade", async () => {
+    const hubLS = makeInstance({ pid: 73, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+    conversationInstanceAffinity.set("new-cascade", hubLS);
+
+    mockRpcCall.mockResolvedValue({ ok: true });
+
+    await expect(
+      resolveAndCall(
+        "SendUserCascadeMessage",
+        "new-cascade",
+        { cascadeId: "new-cascade", items: [] },
+        undefined,
+        false,
+      ),
+    ).resolves.toMatchObject({ data: { ok: true }, instance: hubLS });
+
+    expect(mockRpcCall).toHaveBeenCalledTimes(1);
+    expect(mockRpcCall).toHaveBeenCalledWith(
+      "SendUserCascadeMessage",
+      { cascadeId: "new-cascade", items: [] },
+      hubLS,
+    );
   });
 
   it("allows reads for the same conversation that rejects writes", async () => {
