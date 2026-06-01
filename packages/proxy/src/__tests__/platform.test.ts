@@ -141,4 +141,18 @@ Active Connections
 
     expect(parseNetstatPorts(output, 123)).toEqual([19222, 19223]);
   });
+
+  it("parses localized netstat listening rows for a pid", () => {
+    const output = `
+Active Connections
+
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    127.0.0.1:19222        0.0.0.0:0              ABHREN          123
+  TCP    127.0.0.1:19223        *:*                    ESCUCHANDO      123
+  TCP    127.0.0.1:9999         127.0.0.1:53210        ESTABLISHED     123
+  TCP    [::]:135               [::]:0                 ABHREN          908
+`;
+
+    expect(parseNetstatPorts(output, 123)).toEqual([19222, 19223]);
+  });
 });

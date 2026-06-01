@@ -188,13 +188,18 @@ export function parseNetstatPorts(output: string, pid: number): number[] {
 
   for (const rawLine of output.split("\n")) {
     const line = rawLine.trim();
-    if (!line || !line.includes("LISTENING")) continue;
+    if (!line) continue;
 
     const columns = line.split(/\s+/);
     if (columns.length < 5) continue;
 
     const rowPid = parseInt(columns[columns.length - 1], 10);
     if (rowPid !== pid) continue;
+
+    const remoteAddress = columns[2];
+    const isListening =
+      remoteAddress.endsWith(":0") || remoteAddress.endsWith(":*");
+    if (!isListening) continue;
 
     const localAddress = columns[1];
     const match = localAddress.match(/:(\d+)$/);
