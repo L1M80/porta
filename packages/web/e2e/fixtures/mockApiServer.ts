@@ -8,6 +8,7 @@ interface ConversationState {
   createdTime: string;
   lastModifiedTime: string;
   summary: string;
+  status: string;
   workspaceUri: string;
   steps: unknown[];
 }
@@ -83,13 +84,57 @@ export class MockApiServer {
     this.nextConversationNumber = 1;
   }
 
+  createConversation(
+    id: string,
+    {
+      summary = "New Chat",
+      status = "CASCADE_RUN_STATUS_IDLE",
+      steps = [],
+    }: {
+      summary?: string;
+      status?: string;
+      steps?: unknown[];
+    } = {},
+  ) {
+    const createdTime = nowIso();
+    this.conversations.set(id, {
+      id,
+      createdTime,
+      lastModifiedTime: createdTime,
+      summary,
+      status,
+      workspaceUri: this.workspaceUri,
+      steps,
+    });
+  }
+
+  setConversationStatus(id: string, status: string) {
+    const conversation = this.conversations.get(id);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${id}`);
+    }
+
+    conversation.status = status;
+    conversation.lastModifiedTime = nowIso();
+  }
+
+  setConversationSteps(id: string, steps: unknown[]) {
+    const conversation = this.conversations.get(id);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${id}`);
+    }
+
+    conversation.steps = steps;
+    conversation.lastModifiedTime = nowIso();
+  }
+
   private conversationSummary(conversation: ConversationState) {
     return {
       summary: conversation.summary,
       stepCount: conversation.steps.length,
       lastModifiedTime: conversation.lastModifiedTime,
       trajectoryId: conversation.id,
-      status: "CASCADE_RUN_STATUS_IDLE",
+      status: conversation.status,
       createdTime: conversation.createdTime,
       workspaces: [
         {
@@ -186,6 +231,7 @@ export class MockApiServer {
           createdTime,
           lastModifiedTime: createdTime,
           summary: "New Chat",
+          status: "CASCADE_RUN_STATUS_IDLE",
           workspaceUri,
           steps: [],
         };

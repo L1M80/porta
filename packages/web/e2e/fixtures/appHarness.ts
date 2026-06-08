@@ -287,6 +287,13 @@ class CdpPage {
     );
   }
 
+  async grantPermissions(permissions: string[], origin: string) {
+    await this.connection.send("Browser.grantPermissions", {
+      permissions,
+      origin,
+    });
+  }
+
   async count(selector: string) {
     return this.evaluate<number>(
       `document.querySelectorAll(${JSON.stringify(selector)}).length`,
