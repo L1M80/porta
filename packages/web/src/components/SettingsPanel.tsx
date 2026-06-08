@@ -11,6 +11,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { IconChevronLeft, IconCheck } from "./Icons";
 import { api } from "../api/client";
+import {
+  getBrowserNotificationPermission,
+  requestBrowserNotificationPermission,
+  type BrowserNotificationPermission,
+} from "../utils/browserNotifications";
 import type { ClientSettings } from "../types";
 import type { PlannerType } from "./ChatInput";
 
@@ -32,6 +37,10 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [notificationPermission, setNotificationPermission] =
+    useState<BrowserNotificationPermission>(
+      getBrowserNotificationPermission,
+    );
 
   const fetchModels = useCallback(async (retries = 3) => {
     for (let i = 0; i < retries; i++) {
@@ -52,6 +61,24 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
   useEffect(() => {
     fetchModels();
   }, [fetchModels]);
+
+  useEffect(() => {
+    const syncPermission = () => {
+      setNotificationPermission(getBrowserNotificationPermission());
+    };
+
+    window.addEventListener("focus", syncPermission);
+    return () => window.removeEventListener("focus", syncPermission);
+  }, []);
+
+  useEffect(() => {
+    if (
+      settings.browserNotificationsEnabled &&
+      notificationPermission !== "granted"
+    ) {
+      onUpdate({ browserNotificationsEnabled: false });
+    }
+  }, [notificationPermission, onUpdate, settings.browserNotificationsEnabled]);
 
   const flashSaved = useCallback(() => {
     setSavedFlash(true);
@@ -76,10 +103,43 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
     [onUpdate, flashSaved],
   );
 
+  const handleNotificationsChange = useCallback(
+    async (checked: boolean) => {
+      if (!checked) {
+        onUpdate({ browserNotificationsEnabled: false });
+        flashSaved();
+        return;
+      }
+
+      const permission = await requestBrowserNotificationPermission();
+      setNotificationPermission(permission);
+      onUpdate({ browserNotificationsEnabled: permission === "granted" });
+      flashSaved();
+    },
+    [onUpdate, flashSaved],
+  );
+
   const handleReset = useCallback(() => {
-    onUpdate({ defaultModel: null, defaultPlannerType: "conversational" });
+    onUpdate({
+      defaultModel: null,
+      defaultPlannerType: "conversational",
+      browserNotificationsEnabled: false,
+    });
     flashSaved();
   }, [onUpdate, flashSaved]);
+
+  const notificationsChecked =
+    settings.browserNotificationsEnabled &&
+    notificationPermission === "granted";
+  const notificationsDisabled = notificationPermission === "unsupported";
+  const notificationStatus =
+    notificationPermission === "unsupported"
+      ? "Unsupported"
+      : notificationPermission === "denied"
+        ? "Blocked"
+        : notificationsChecked
+          ? "On"
+          : "Off";
 
   return (
     <div className="settings-panel">
@@ -148,6 +208,36 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
               <option value="conversational">Fast</option>
               <option value="planning">Plan</option>
             </select>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        <div className="settings-section">
+          <h2 className="settings-section-title">Notifications</h2>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Browser Notifications</span>
+              <span className="settings-row-desc">
+                Run completion and approval requests.
+              </span>
+            </div>
+            <div className="settings-notification-control">
+              <span className="settings-permission-status">
+                {notificationStatus}
+              </span>
+              <label className="settings-switch">
+                <input
+                  type="checkbox"
+                  checked={notificationsChecked}
+                  disabled={notificationsDisabled}
+                  onChange={(e) => {
+                    void handleNotificationsChange(e.target.checked);
+                  }}
+                  aria-label="Browser Notifications"
+                />
+                <span className="settings-switch-track" />
+              </label>
+            </div>
           </div>
         </div>
 

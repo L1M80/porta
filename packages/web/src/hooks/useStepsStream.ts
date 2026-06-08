@@ -44,6 +44,7 @@ export function useStepsStream(
   totalStepCount?: number,
   onIdleTransition?: () => void,
   isConversationRunning = false,
+  keepAliveWhenHidden = false,
 ): UseStepsStreamResult {
   const [steps, setSteps] = useState<TrajectoryStep[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,7 +226,13 @@ export function useStepsStream(
             wsRef.current = null;
           }
 
-          if (typeof document !== "undefined" && document.hidden) return;
+          if (
+            typeof document !== "undefined" &&
+            document.hidden &&
+            !keepAliveWhenHidden
+          ) {
+            return;
+          }
 
           const current = wsRef.current;
           if (current && current.readyState < WebSocket.CLOSING) return;
@@ -235,7 +242,13 @@ export function useStepsStream(
             reconnectTimerRef.current = null;
 
             if (!mountedRef.current || gen !== genRef.current) return;
-            if (typeof document !== "undefined" && document.hidden) return;
+            if (
+              typeof document !== "undefined" &&
+              document.hidden &&
+              !keepAliveWhenHidden
+            ) {
+              return;
+            }
 
             const activeSocket = wsRef.current;
             if (activeSocket && activeSocket.readyState < WebSocket.CLOSING) {
@@ -253,7 +266,7 @@ export function useStepsStream(
         // WS not available — no real-time updates
       }
     },
-    [cascadeId, clearReconnectTimer],
+    [cascadeId, clearReconnectTimer, keepAliveWhenHidden],
   );
 
   // ── Lifecycle: fetch + connect ──
@@ -292,6 +305,7 @@ export function useStepsStream(
 
     const onVisibilityChange = () => {
       if (!document.hidden) return;
+      if (keepAliveWhenHidden) return;
 
       clearReconnectTimer();
       setWsRunning(false);
@@ -307,7 +321,7 @@ export function useStepsStream(
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [clearReconnectTimer]);
+  }, [clearReconnectTimer, keepAliveWhenHidden]);
 
   // ── Lazy load older steps ──
   const loadOlder = useCallback(async (): Promise<number> => {

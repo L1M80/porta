@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useChatNotifications } from "../hooks/useChatNotifications";
 import { useStepsStream } from "../hooks/useStepsStream";
 import { stepsToMessages } from "../transforms/stepsToMessages";
 import {
@@ -59,6 +60,8 @@ interface Props {
   hardRefreshKey?: number;
   totalStepCount?: number;
   isConversationRunning?: boolean;
+  browserNotificationsEnabled?: boolean;
+  conversationTitle?: string;
   /** Called when the WS reports the agent went idle — triggers sidebar refresh. */
   onSidebarRefresh?: () => void;
 }
@@ -387,6 +390,8 @@ export function ChatPanel({
   hardRefreshKey = 0,
   totalStepCount,
   isConversationRunning = false,
+  browserNotificationsEnabled = false,
+  conversationTitle,
   onSidebarRefresh,
 }: Props) {
   const {
@@ -403,7 +408,18 @@ export function ChatPanel({
     totalStepCount,
     onSidebarRefresh,
     isConversationRunning,
+    browserNotificationsEnabled,
   );
+
+  useChatNotifications({
+    cascadeId,
+    steps: rawSteps,
+    loading,
+    wsRunning,
+    isConversationRunning,
+    enabled: browserNotificationsEnabled,
+    conversationTitle,
+  });
 
   // Soft re-fetch when refreshKey changes (e.g. after send)
   const prevKeyRef = useRef(refreshKey);

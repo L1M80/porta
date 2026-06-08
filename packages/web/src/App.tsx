@@ -293,6 +293,8 @@ function ChatView() {
             hardRefreshKey={hardRefreshKey}
             totalStepCount={activeConv?.summary.stepCount}
             isConversationRunning={isRunning}
+            browserNotificationsEnabled={settings.browserNotificationsEnabled}
+            conversationTitle={headerTitle}
             onSidebarRefresh={refresh}
           />
         ) : (
