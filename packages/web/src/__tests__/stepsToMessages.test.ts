@@ -110,6 +110,22 @@ describe("stepsToMessages", () => {
     expect(msgs[0].thinkingDuration).toBe("2.5s");
   });
 
+  it("uses planner response items when modifiedResponse is empty", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+      plannerResponse: {
+        modifiedResponse: "",
+        items: [{ text: "Inspect current UI" }, { text: "Add plan panel" }],
+      },
+    };
+
+    const msgs = stepsToMessages([step]);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].role).toBe("assistant");
+    expect(msgs[0].content).toBe("Inspect current UI\n\nAdd plan panel");
+  });
+
   it("skips planner response with empty text and no thinking", () => {
     const step: TrajectoryStep = {
       type: "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
