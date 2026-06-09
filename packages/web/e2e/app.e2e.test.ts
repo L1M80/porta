@@ -66,8 +66,17 @@ describe("web e2e", () => {
     await page!.waitForPath("/porta/conv-1");
     await page!.waitForText(prompt);
     await page!.waitForText(`Mock response for: ${prompt}`);
+    await page!.waitForText("Implementation plan");
 
     expect(await page!.count(".message.user")).toBe(1);
     expect(await page!.count(".message.assistant")).toBe(1);
+    expect(await page!.count(".implementation-plan-block")).toBe(1);
+
+    await page!.click(".implementation-plan-header");
+    await page!.waitFor(
+      `Boolean(document.querySelector(".implementation-plan-block[open]"))`,
+      { timeoutMs: 5_000, description: "implementation plan to expand" },
+    );
+    expect(await page!.bodyText()).toContain("Inspecting mock conversation state.");
   });
 });

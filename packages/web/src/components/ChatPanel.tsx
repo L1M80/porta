@@ -1,4 +1,5 @@
 import {
+  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -9,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useChatNotifications } from "../hooks/useChatNotifications";
 import { useStepsStream } from "../hooks/useStepsStream";
 import { stepsToMessages } from "../transforms/stepsToMessages";
 import {
@@ -35,6 +37,7 @@ import {
   IconEye,
   IconMessageCircle,
   IconAlertTriangle,
+  IconChevron,
 } from "./Icons";
 import type { ChatMessage } from "../types";
 
@@ -59,18 +62,25 @@ interface Props {
   hardRefreshKey?: number;
   totalStepCount?: number;
   isConversationRunning?: boolean;
+  browserNotificationsEnabled?: boolean;
+  conversationTitle?: string;
   /** Called when the WS reports the agent went idle — triggers sidebar refresh. */
   onSidebarRefresh?: () => void;
 }
 
-/** Collapsible thinking/reasoning block */
-function ThinkingBlock({
-  thinking,
+/** Collapsible implementation plan block */
+function ImplementationPlanBlock({
+  plan,
   duration,
+  live = false,
 }: {
-  thinking: string;
+  plan: string;
   duration?: string;
+  live?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(live);
+  const renderedPlan = useMemo(() => renderMarkdown(plan), [plan]);
   let durationLabel = "";
   if (duration) {
     const match = duration.match(/([\d.]+)s/);
@@ -80,16 +90,95 @@ function ThinkingBlock({
   }
 
   return (
-    <details className="thinking-block">
-      <summary className="thinking-header">
-        <span className="thinking-chevron">›</span>
-        <span className="thinking-label">
-          Thinking{durationLabel ? ` for ${durationLabel}` : ""}
+    <details
+      className={`implementation-plan-block${live ? " live" : ""}`}
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="implementation-plan-header">
+        <span className="implementation-plan-icon">
+          <IconList size={13} />
+        </span>
+        <span className="implementation-plan-label">
+          {live ? "Live implementation plan" : "Implementation plan"}
+        </span>
+        {live && (
+          <span className="implementation-plan-live-badge">Live</span>
+        )}
+        {durationLabel && (
+          <span className="implementation-plan-meta">{durationLabel}</span>
+        )}
+        <span className="implementation-plan-action">
+          {open ? "Hide" : "View"}
+        </span>
+        <span className="implementation-plan-chevron">
+          <IconChevron size={13} />
         </span>
       </summary>
-      <div className="thinking-content">{thinking}</div>
+      <div className="implementation-plan-content">
+        <MarkdownContent html={renderedPlan} />
+        <div className="implementation-plan-actions">
+          <button
+            className="msg-action-btn implementation-plan-copy"
+            title="Copy implementation plan"
+            onClick={() => {
+              navigator.clipboard.writeText(plan).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+          >
+            {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+          </button>
+        </div>
+      </div>
     </details>
   );
+}
+
+function textFromStepItems(items?: { text?: string }[]): string {
+  if (!items) return "";
+  return items
+    .filter((item) => item.text?.trim())
+    .map((item) => item.text!.trim())
+    .join("\n\n");
+}
+
+function implementationPlanFromStep(step: ChatMessage["step"]): string {
+  const plannerResponse = step?.plannerResponse;
+  if (!plannerResponse) return "";
+
+  const thinking = plannerResponse.thinking?.trim();
+  if (thinking) return plannerResponse.thinking ?? "";
+
+  const itemText = textFromStepItems(plannerResponse.items);
+  if (!plannerResponse.modifiedResponse?.trim() && itemText) return itemText;
+
+  return "";
+}
+
+interface LiveImplementationPlan {
+  plan: string;
+  duration?: string;
+  stepIndex: number;
+}
+
+function latestImplementationPlan(
+  steps: ChatMessage["step"][],
+): LiveImplementationPlan | null {
+  for (let index = steps.length - 1; index >= 0; index--) {
+    const step = steps[index];
+    const plan = implementationPlanFromStep(step);
+    if (plan.trim()) {
+      return {
+        plan,
+        duration: step?.plannerResponse?.thinkingDuration,
+        stepIndex: index,
+      };
+    }
+  }
+
+  return null;
 }
 
 /** Map icon key → Lucide component */
@@ -114,6 +203,30 @@ function MsgIcon({ name }: { name?: string }) {
     default:
       return null;
   }
+}
+
+function PinnedImplementationPlanMessage({
+  implementationPlan,
+  live,
+}: {
+  implementationPlan: LiveImplementationPlan;
+  live: boolean;
+}) {
+  return (
+    <div className="message assistant pinned-implementation-plan-message">
+      <div
+        className={`chat-block message-body pinned-implementation-plan-body${
+          live ? " live" : ""
+        }`}
+      >
+        <ImplementationPlanBlock
+          plan={implementationPlan.plan}
+          duration={implementationPlan.duration}
+          live={live}
+        />
+      </div>
+    </div>
+  );
 }
 
 function SystemMessage({
@@ -255,6 +368,7 @@ interface MessageBubbleProps {
   msg: ChatMessage;
   isLocked: boolean;
   isUnconfirmed: boolean;
+  suppressImplementationPlan?: boolean;
   onRevert: (stepIndex: number, editText?: string) => void;
   onImageClick: (src: string) => void;
 }
@@ -264,6 +378,7 @@ const MessageBubble = memo(
     msg,
     isLocked,
     isUnconfirmed,
+    suppressImplementationPlan = false,
     onRevert,
     onImageClick,
   }: MessageBubbleProps) {
@@ -271,15 +386,25 @@ const MessageBubble = memo(
       () => (msg.content ? renderMarkdown(msg.content) : ""),
       [msg.content],
     );
+    const showImplementationPlan =
+      Boolean(msg.thinking) && !suppressImplementationPlan;
+
+    if (
+      !showImplementationPlan &&
+      !msg.content &&
+      (!msg.media || msg.media.length === 0)
+    ) {
+      return null;
+    }
 
     return (
       <div
         className={`message ${msg.role}${isUnconfirmed ? " unconfirmed" : ""}`}
       >
         <div className="chat-block message-body">
-          {msg.thinking && (
-            <ThinkingBlock
-              thinking={msg.thinking}
+          {showImplementationPlan && msg.thinking && (
+            <ImplementationPlanBlock
+              plan={msg.thinking}
               duration={msg.thinkingDuration}
             />
           )}
@@ -316,11 +441,13 @@ const MessageBubble = memo(
   (prev, next) =>
     prev.msg.content === next.msg.content &&
     prev.msg.thinking === next.msg.thinking &&
+    prev.msg.thinkingDuration === next.msg.thinkingDuration &&
     prev.msg.stepIndex === next.msg.stepIndex &&
     prev.msg.role === next.msg.role &&
     prev.msg.media === next.msg.media &&
     prev.isLocked === next.isLocked &&
-    prev.isUnconfirmed === next.isUnconfirmed,
+    prev.isUnconfirmed === next.isUnconfirmed &&
+    prev.suppressImplementationPlan === next.suppressImplementationPlan,
 );
 
 /** Fullscreen image lightbox with swipe-down-to-dismiss */
@@ -387,6 +514,8 @@ export function ChatPanel({
   hardRefreshKey = 0,
   totalStepCount,
   isConversationRunning = false,
+  browserNotificationsEnabled = false,
+  conversationTitle,
   onSidebarRefresh,
 }: Props) {
   const {
@@ -403,7 +532,23 @@ export function ChatPanel({
     totalStepCount,
     onSidebarRefresh,
     isConversationRunning,
+    browserNotificationsEnabled,
   );
+
+  useChatNotifications({
+    cascadeId,
+    steps: rawSteps,
+    loading,
+    wsRunning,
+    isConversationRunning,
+    enabled: browserNotificationsEnabled,
+    conversationTitle,
+  });
+
+  const [
+    pinnedImplementationPlanStepIndex,
+    setPinnedImplementationPlanStepIndex,
+  ] = useState<number | null>(null);
 
   // Soft re-fetch when refreshKey changes (e.g. after send)
   const prevKeyRef = useRef(refreshKey);
@@ -429,10 +574,15 @@ export function ChatPanel({
     if (cascadeId !== prevCascadeRef.current) {
       prevCascadeRef.current = cascadeId;
       didInitialScroll.current = false;
+      setPinnedImplementationPlanStepIndex(null);
     }
   }, [cascadeId]);
 
   const serverMessages = useMemo(() => stepsToMessages(rawSteps), [rawSteps]);
+  const liveImplementationPlan = useMemo(
+    () => latestImplementationPlan(rawSteps),
+    [rawSteps],
+  );
   const {
     messages,
     confirmedOptimisticIds,
@@ -449,6 +599,29 @@ export function ChatPanel({
 
   const isLocked = wsRunning || hasUnconfirmedOptimistic;
   const showTyping = wsRunning || hasUnconfirmedOptimistic;
+  const liveImplementationPlanActive =
+    showTyping && liveImplementationPlan !== null;
+  const pinnedImplementationPlan =
+    liveImplementationPlan &&
+    (liveImplementationPlanActive ||
+      pinnedImplementationPlanStepIndex === liveImplementationPlan.stepIndex)
+      ? liveImplementationPlan
+      : null;
+  const pinnedPlanInsertBeforeMessageIndex = useMemo(() => {
+    if (!pinnedImplementationPlan) return -1;
+    return messages.findIndex(
+      (msg) =>
+        msg.role === "assistant" &&
+        msg.stepIndex >= pinnedImplementationPlan.stepIndex &&
+        Boolean(msg.content.trim()),
+    );
+  }, [messages, pinnedImplementationPlan]);
+
+  useEffect(() => {
+    if (liveImplementationPlanActive && liveImplementationPlan) {
+      setPinnedImplementationPlanStepIndex(liveImplementationPlan.stepIndex);
+    }
+  }, [liveImplementationPlanActive, liveImplementationPlan]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInitialScroll = useRef(false);
@@ -626,28 +799,51 @@ export function ChatPanel({
         )}
 
         {messages.map((msg, i) => {
+          const messageKey = msg.optimisticId ?? `${msg.stepIndex}-${i}`;
+          const pinnedPlanNode =
+            pinnedImplementationPlan &&
+            i === pinnedPlanInsertBeforeMessageIndex ? (
+              <PinnedImplementationPlanMessage
+                implementationPlan={pinnedImplementationPlan}
+                live={liveImplementationPlanActive}
+              />
+            ) : null;
+
           if (msg.role === "system") {
             return (
-              <SystemMessage
-                key={`${msg.stepIndex}-${i}`}
-                msg={msg}
-                onFilePermission={onFilePermission}
-                onCommandAction={onCommandAction}
-              />
+              <Fragment key={messageKey}>
+                {pinnedPlanNode}
+                <SystemMessage
+                  msg={msg}
+                  onFilePermission={onFilePermission}
+                  onCommandAction={onCommandAction}
+                />
+              </Fragment>
             );
           }
 
           return (
-            <MessageBubble
-              key={msg.optimisticId ?? `${msg.stepIndex}-${i}`}
-              msg={msg}
-              isLocked={isLocked}
-              isUnconfirmed={isUnconfirmedOptimisticMessage(msg)}
-              onRevert={onRevert}
-              onImageClick={setLightboxSrc}
-            />
+            <Fragment key={messageKey}>
+              {pinnedPlanNode}
+              <MessageBubble
+                msg={msg}
+                isLocked={isLocked}
+                isUnconfirmed={isUnconfirmedOptimisticMessage(msg)}
+                suppressImplementationPlan={
+                  pinnedImplementationPlan?.stepIndex === msg.stepIndex
+                }
+                onRevert={onRevert}
+                onImageClick={setLightboxSrc}
+              />
+            </Fragment>
           );
         })}
+        {pinnedImplementationPlan && pinnedPlanInsertBeforeMessageIndex < 0 && (
+          <PinnedImplementationPlanMessage
+            implementationPlan={pinnedImplementationPlan}
+            live={liveImplementationPlanActive}
+          />
+        )}
         {showTyping && (
           <div className="message assistant">
             <div className="message-body">

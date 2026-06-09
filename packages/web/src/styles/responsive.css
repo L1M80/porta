@@ -245,9 +245,27 @@
     padding: 0 8px;
   }
 
-  /* ── Thinking block ── */
+  /* ── Implementation plan panel ── */
 
-  .thinking-content {
+  .implementation-plan-header {
+    min-height: 34px;
+    padding: 7px 8px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .implementation-plan-meta,
+  .implementation-plan-action {
+    font-size: 10px;
+  }
+
+  .implementation-plan-live-badge {
+    padding: 0 5px;
+    font-size: 9px;
+    line-height: 14px;
+  }
+
+  .implementation-plan-content {
     font-size: 11px;
     max-height: 250px;
     padding: 6px 8px;

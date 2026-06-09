@@ -1,6 +1,14 @@
 import type { ChatMessage, TrajectoryStep } from "../types";
 import { getFilePermissionRequest } from "../components/StepCards";
 
+function textFromItems(items?: { text?: string }[]): string {
+  if (!items) return "";
+  return items
+    .filter((item) => item.text?.trim())
+    .map((item) => item.text!.trim())
+    .join("\n\n");
+}
+
 /** Extract displayable messages from raw trajectory steps */
 export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
@@ -23,14 +31,12 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
     }
 
     if (type === "CORTEX_STEP_TYPE_USER_INPUT" && step.userInput?.items) {
-      const texts = step.userInput.items
-        .filter((item) => item.text?.trim())
-        .map((item) => item.text!.trim());
+      const text = textFromItems(step.userInput.items);
       const media = step.userInput.media;
-      if (texts.length > 0 || (media && media.length > 0)) {
+      if (text || (media && media.length > 0)) {
         messages.push({
           role: "user",
-          content: texts.join("\n\n"),
+          content: text,
           stepIndex: i,
           type,
           optimisticId: step.clientMessageId,
@@ -41,7 +47,8 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
       const pr = step.plannerResponse;
       if (!pr) continue;
 
-      const text = pr.modifiedResponse ?? "";
+      const itemText = textFromItems(pr.items);
+      const text = pr.modifiedResponse?.trim() ? pr.modifiedResponse : itemText;
       const thinking = pr.thinking ?? "";
       const thinkingDuration = pr.thinkingDuration ?? "";
 
