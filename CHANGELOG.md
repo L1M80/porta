@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-09
+
+### Added
+
+- **Browser notifications can now alert users when an agent run completes or
+  approval is requested**, with a Settings toggle and permission handling for
+  supported browsers. (#66, #69)
+
+### Fixed
+
+- **Antigravity generated implementation plans are now visible in chat** as a
+  dedicated Implementation plan panel, including live display during active
+  runs and pinned placement above the assistant response after completion.
+  (#65, #71)
+
 ## [0.7.0] - 2026-06-02
 
 ### Fixed
