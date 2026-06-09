@@ -120,7 +120,141 @@ details[open] .thinking-chevron {
   overflow-y: auto;
 }
 
-/* ── Message action buttons (copy, revert) ── */
+/* Implementation plan panel */
+
+.implementation-plan-block {
+  margin-bottom: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--c-lift) / 0.03);
+  overflow: hidden;
+}
+
+.implementation-plan-block.live {
+  border-color: rgb(var(--c-accent) / 0.45);
+  background: rgb(var(--c-accent) / 0.07);
+  box-shadow: 0 0 0 1px rgb(var(--c-accent) / 0.12) inset;
+}
+
+.implementation-plan-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  user-select: none;
+  list-style: none;
+}
+
+.implementation-plan-header:hover {
+  background: rgb(var(--c-lift) / 0.04);
+  color: var(--text-primary);
+}
+
+.implementation-plan-header::-webkit-details-marker {
+  display: none;
+}
+
+.implementation-plan-icon,
+.implementation-plan-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-accent);
+}
+
+.implementation-plan-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.implementation-plan-meta {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.implementation-plan-live-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--c-accent) / 0.16);
+  color: var(--text-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.implementation-plan-action {
+  flex-shrink: 0;
+  color: var(--text-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.implementation-plan-chevron {
+  transition: transform var(--transition-fast);
+}
+
+.implementation-plan-block[open] .implementation-plan-chevron {
+  transform: rotate(180deg);
+}
+
+.implementation-plan-content {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 10px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.implementation-plan-content > :first-child {
+  margin-top: 0;
+}
+
+.implementation-plan-content > :last-child {
+  margin-bottom: 0;
+}
+
+.implementation-plan-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.implementation-plan-copy {
+  width: 24px;
+  height: 24px;
+}
+
+.pinned-implementation-plan-message {
+  width: 100%;
+}
+
+.pinned-implementation-plan-body.live {
+  background: rgb(var(--c-accent) / 0.04);
+  border-color: rgb(var(--c-accent) / 0.22);
+}
+
+.pinned-implementation-plan-body .implementation-plan-block {
+  margin-bottom: 0;
+}
+
+/* Message action buttons (copy, revert) */
 
 .msg-actions {
   display: flex;
