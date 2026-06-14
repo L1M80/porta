@@ -15,5 +15,6 @@ export function handleRPCError(c: { json: Function }, err: unknown) {
     return c.json({ error: err.message, code: err.code }, status);
   }
   const message = err instanceof Error ? err.message : String(err);
-  return c.json({ error: message }, 500);
+  console.error("[Porta Proxy Error]", err);
+  return c.json({ error: "Internal Server Error" }, 500);
 }
