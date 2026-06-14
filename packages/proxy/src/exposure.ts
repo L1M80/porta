@@ -91,6 +91,9 @@ export function assertSupportedListenHost(
     normalized === "::" ||
     normalized === "[::]"
   ) {
+    if (env.PORTA_ALLOW_WILDCARD === "1") {
+      return;
+    }
     throw new Error(
       "Wildcard bind addresses are not supported. Set PORTA_HOST to 127.0.0.1 for local/Zero Trust use, or to an explicit private LAN IP.",
     );

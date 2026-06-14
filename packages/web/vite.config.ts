@@ -17,7 +17,11 @@ export default defineConfig(({ mode }) => {
   const proxyHost = env.PORTA_HOST || process.env.PORTA_HOST || "127.0.0.1";
   const proxyPort = env.PORTA_PORT || process.env.PORTA_PORT || "3170";
 
+  const rawBasePath = env.PORTA_BASE_PATH || process.env.PORTA_BASE_PATH || "/";
+  const basePath = rawBasePath.endsWith("/") ? rawBasePath : `${rawBasePath}/`;
+
   return {
+    base: basePath,
     plugins: [
       react(),
       VitePWA({
@@ -40,11 +44,18 @@ export default defineConfig(({ mode }) => {
     ],
     envDir: repoRoot,
     server: {
+      host: env.PORTA_HOST || process.env.PORTA_HOST || "127.0.0.1",
+      port: Number(env.PORTA_WEB_PORT || process.env.PORTA_WEB_PORT || 3070),
+      allowedHosts: true,
       proxy: {
-        "/api": {
+        [`${basePath}api`]: {
           target: toHttpOrigin(proxyHost, proxyPort),
           changeOrigin: true,
           ws: true,
+          rewrite: (path) => {
+            const prefix = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+            return prefix ? path.replace(new RegExp(`^${prefix}`), "") : path;
+          },
           headers: {
             ...(env.CF_ACCESS_CLIENT_ID ? { "CF-Access-Client-Id": env.CF_ACCESS_CLIENT_ID } : {}),
             ...(env.CF_ACCESS_CLIENT_SECRET ? { "CF-Access-Client-Secret": env.CF_ACCESS_CLIENT_SECRET } : {}),
