@@ -33,6 +33,8 @@ import {
 import { messageTracker } from "../message-tracker.js";
 import { conversationSignals } from "../signals.js";
 
+const MAX_STEPS_LIMIT = 500;
+
 // ── Background warm-up for disk-only conversations ──
 
 /** Warm-up cache: cascadeId → timestamp when the warm-up was initiated. */
@@ -303,9 +305,14 @@ export function registerConversationRoutes(app: Hono): void {
   app.get("/api/conversations/:id/steps", async (c) => {
     const id = c.req.param("id");
     const offset = parseInt(c.req.query("offset") ?? "0", 10);
-    const limit = c.req.query("limit")
-      ? parseInt(c.req.query("limit")!, 10)
-      : undefined;
+    const limitParam = c.req.query("limit");
+    let limit = limitParam ? parseInt(limitParam, 10) : undefined;
+    if (limit !== undefined && (isNaN(limit) || limit <= 0)) {
+      limit = 100;
+    }
+    if (limit !== undefined) {
+      limit = Math.min(limit, MAX_STEPS_LIMIT);
+    }
 
     try {
       let resolvedOffset = offset;

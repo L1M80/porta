@@ -39,7 +39,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, 42);
     expect(c.result).toEqual({
-      body: { error: "42" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
@@ -48,7 +48,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, null);
     expect(c.result).toEqual({
-      body: { error: "null" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
@@ -57,7 +57,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, undefined);
     expect(c.result).toEqual({
-      body: { error: "undefined" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
@@ -72,7 +72,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, new CustomError());
     expect(c.result).toEqual({
-      body: { error: "custom error" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
@@ -81,7 +81,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, { message: "object error" });
     expect(c.result).toEqual({
-      body: { error: "[object Object]" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });

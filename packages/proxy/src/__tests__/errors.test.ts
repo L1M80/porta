@@ -44,20 +44,20 @@ describe("handleRPCError", () => {
     });
   });
 
-  it("handles generic Error", () => {
+  it("handles generic Error by redacting details", () => {
     const c = mockContext();
     handleRPCError(c, new Error("something unexpected"));
     expect(c.result).toEqual({
-      body: { error: "something unexpected" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
 
-  it("handles string errors", () => {
+  it("handles string errors by redacting details", () => {
     const c = mockContext();
     handleRPCError(c, "raw string error");
     expect(c.result).toEqual({
-      body: { error: "raw string error" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
