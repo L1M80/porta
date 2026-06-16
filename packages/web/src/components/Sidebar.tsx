@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import type { ConversationEntry } from "../hooks/useConversations";
 import { api } from "../api/client";
+import { workspaceNameFromMetadata } from "../utils/workspaceNames";
 import {
   IconPlus,
   IconSearch,
@@ -44,13 +45,9 @@ function relativeTime(iso: string): string {
 }
 
 function extractWorkspaceName(conv: ConversationEntry): string {
-  const ws = conv.summary.workspaces?.[0];
-  if (!ws) return "Others";
-  const repo = ws.repository?.computedName;
-  if (repo) return repo.split("/").pop() ?? repo;
-  const uri = ws.workspaceFolderAbsoluteUri;
-  if (uri) return uri.split("/").pop() ?? "Others";
-  return "Others";
+  return workspaceNameFromMetadata(conv.summary.workspaces?.[0], {
+    collapseAntigravityPlayground: true,
+  });
 }
 
 function isArchived(conv: ConversationEntry): boolean {
@@ -254,7 +251,9 @@ export function Sidebar({
         const next = { ...prev, [convId]: conv.summary.lastModifiedTime };
         try {
           localStorage.setItem("porta:seenAt", JSON.stringify(next));
-        } catch {}
+        } catch {
+          // localStorage can be unavailable in restricted browser contexts.
+        }
         return next;
       });
     },

@@ -23,6 +23,13 @@ const CONVERSATIONS_DIR = join(
   "conversations",
 );
 
+const CONVERSATION_EXTENSIONS = [".pb", ".db"] as const;
+
+function conversationIdFromFilename(file: string): string | undefined {
+  const extension = CONVERSATION_EXTENSIONS.find((ext) => file.endsWith(ext));
+  return extension ? file.slice(0, -extension.length) : undefined;
+}
+
 /**
  * Build the metadata object that the LS requires on write RPCs.
  * Mirrors what the VS Code extension sends via MetadataProvider.
@@ -42,24 +49,30 @@ export async function getMetadata(
   return meta;
 }
 
-/** Scan disk for .pb conversation files not loaded in memory */
-export async function scanDiskConversations(): Promise<
+/** Scan disk for conversation files not loaded in memory */
+export async function scanDiskConversations(
+  conversationsDir = CONVERSATIONS_DIR,
+): Promise<
   { id: string; mtime: string }[]
 > {
   try {
-    const files = await readdir(CONVERSATIONS_DIR);
-    const results: { id: string; mtime: string }[] = [];
+    const files = await readdir(conversationsDir);
+    const results = new Map<string, { id: string; mtime: string }>();
     for (const file of files) {
-      if (!file.endsWith(".pb")) continue;
-      const id = file.replace(".pb", "");
+      const id = conversationIdFromFilename(file);
+      if (!id) continue;
       try {
-        const s = await stat(join(CONVERSATIONS_DIR, file));
-        results.push({ id, mtime: s.mtime.toISOString() });
+        const s = await stat(join(conversationsDir, file));
+        const mtime = s.mtime.toISOString();
+        const existing = results.get(id);
+        if (!existing || existing.mtime < mtime) {
+          results.set(id, { id, mtime });
+        }
       } catch {
-        results.push({ id, mtime: new Date().toISOString() });
+        results.set(id, { id, mtime: new Date().toISOString() });
       }
     }
-    return results;
+    return [...results.values()];
   } catch {
     return [];
   }

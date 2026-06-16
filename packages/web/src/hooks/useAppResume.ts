@@ -13,9 +13,6 @@ export function useAppResume(
   onResume: () => void,
   { enabled = true, dedupeMs = 250 }: UseAppResumeOptions = {},
 ): void {
-  const onResumeRef = useRef(onResume);
-  onResumeRef.current = onResume;
-
   const lastResumeAtRef = useRef<number>(-Infinity);
 
   useEffect(() => {
@@ -30,7 +27,7 @@ export function useAppResume(
       if (now - lastResumeAtRef.current < dedupeMs) return;
 
       lastResumeAtRef.current = now;
-      onResumeRef.current();
+      onResume();
     };
 
     const onVisibilityChange = () => {
@@ -48,5 +45,5 @@ export function useAppResume(
       window.removeEventListener("pageshow", emitResume);
       window.removeEventListener("focus", emitResume);
     };
-  }, [enabled, dedupeMs]);
+  }, [enabled, dedupeMs, onResume]);
 }

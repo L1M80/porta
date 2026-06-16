@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   extractConversationWorkspaces,
   getMetadata,
   getPrimaryWorkspaceUri,
+  scanDiskConversations,
   withNormalizedConversationWorkspaces,
 } from "../metadata.js";
 
@@ -88,5 +92,51 @@ describe("conversation workspace metadata helpers", () => {
     expect(extractConversationWorkspaces(summary)).toEqual([
       { workspaceFolderAbsoluteUri: "file:///tmp/from-uri" },
     ]);
+  });
+});
+
+describe("scanDiskConversations", () => {
+  it("scans .pb and .db conversations while ignoring SQLite sidecar files", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "porta-conversations-"));
+    try {
+      await writeFile(join(dir, "legacy.pb"), "");
+      await writeFile(join(dir, "modern.db"), "");
+      await writeFile(join(dir, "modern.db-wal"), "");
+      await writeFile(join(dir, "modern.db-shm"), "");
+      await writeFile(join(dir, "notes.txt"), "");
+
+      const legacyTime = new Date("2026-06-01T00:00:00.000Z");
+      const modernTime = new Date("2026-06-02T00:00:00.000Z");
+      await utimes(join(dir, "legacy.pb"), legacyTime, legacyTime);
+      await utimes(join(dir, "modern.db"), modernTime, modernTime);
+
+      const results = await scanDiskConversations(dir);
+
+      expect(results.sort((a, b) => a.id.localeCompare(b.id))).toEqual([
+        { id: "legacy", mtime: legacyTime.toISOString() },
+        { id: "modern", mtime: modernTime.toISOString() },
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deduplicates matching .pb and .db files by newest mtime", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "porta-conversations-"));
+    try {
+      await writeFile(join(dir, "same.pb"), "");
+      await writeFile(join(dir, "same.db"), "");
+
+      const oldTime = new Date("2026-06-01T00:00:00.000Z");
+      const newTime = new Date("2026-06-03T00:00:00.000Z");
+      await utimes(join(dir, "same.pb"), oldTime, oldTime);
+      await utimes(join(dir, "same.db"), newTime, newTime);
+
+      expect(await scanDiskConversations(dir)).toEqual([
+        { id: "same", mtime: newTime.toISOString() },
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
