@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
+import { normalizeBasePath } from "./src/basePath.shared";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -18,7 +19,7 @@ export default defineConfig(({ mode }) => {
   const proxyPort = env.PORTA_PORT || process.env.PORTA_PORT || "3170";
 
   const rawBasePath = env.PORTA_BASE_PATH || process.env.PORTA_BASE_PATH || "/";
-  const basePath = rawBasePath.endsWith("/") ? rawBasePath : `${rawBasePath}/`;
+  const basePath = normalizeBasePath(rawBasePath);
   const allowedHostsRaw = env.PORTA_ALLOWED_HOSTS || process.env.PORTA_ALLOWED_HOSTS;
   const allowedHosts = allowedHostsRaw === "true" || allowedHostsRaw === "all" || allowedHostsRaw === "*"
     ? true
@@ -26,6 +27,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: basePath,
+    define: {
+      "import.meta.env.PORTA_BASE_PATH": JSON.stringify(basePath),
+    },
     plugins: [
       react(),
       VitePWA({
@@ -44,6 +48,7 @@ export default defineConfig(({ mode }) => {
         },
         manifest: false, // Use our existing public/manifest.json
         injectRegister: "script-defer",
+        scope: basePath,
       }),
     ],
     envDir: repoRoot,
@@ -58,7 +63,7 @@ export default defineConfig(({ mode }) => {
           ws: true,
           rewrite: (path) => {
             const prefix = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-            return prefix ? path.replace(new RegExp(`^${prefix}`), "") : path;
+            return prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
           },
           headers: {
             ...(env.CF_ACCESS_CLIENT_ID ? { "CF-Access-Client-Id": env.CF_ACCESS_CLIENT_ID } : {}),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PORTA_BASE_PATH } from "../basePath";
 import { api } from "../api/client";
 import type { TrajectoryStep } from "../types";
 import { useAppResume } from "./useAppResume";
@@ -142,8 +143,7 @@ export function useStepsStream(
         url = `${wsBase}/api/conversations/${cascadeId}/ws`;
       } else {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const baseUrl = import.meta.env.BASE_URL ?? "/";
-        const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+        const cleanBaseUrl = PORTA_BASE_PATH.endsWith("/") ? PORTA_BASE_PATH.slice(0, -1) : PORTA_BASE_PATH;
         url = `${protocol}//${window.location.host}${cleanBaseUrl}/api/conversations/${cascadeId}/ws`;
       }
       const gen = genRef.current;
