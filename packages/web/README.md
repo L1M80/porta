@@ -13,7 +13,7 @@ pnpm test       # Vitest
 
 ## Architecture
 
-- **Router:** React Router v7 — hash-based routing for static hosting compatibility.
+- **Router:** React Router v7 with `BrowserRouter`; set `PORTA_BASE_PATH` when hosting under a subpath.
 - **State:** React hooks + context. No external state management library.
 - **Styling:** Vanilla CSS with CSS custom properties.
 - **PWA:** `vite-plugin-pwa` with `autoUpdate` strategy.
@@ -21,8 +21,9 @@ pnpm test       # Vitest
 
 ## Build-time environment
 
-| Variable        | Description                                                                                                      |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_BASE` | Absolute API URL for production builds. Leave unset during local dev (Vite proxies `/api/*` to the local proxy). |
+| Variable          | Description                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `PORTA_BASE_PATH` | Optional deployment subpath such as `/porta`. Drives Vite asset URLs, React Router basename, relative API URLs, and PWA scope. |
+| `VITE_API_BASE`   | Absolute API URL for production builds. When unset, API calls are relative to `PORTA_BASE_PATH` and Vite proxies them locally. |
 
 The `envDir` in `vite.config.ts` is set to the repo root (`../..` from `packages/web`), so `.env*` files in the repo root are picked up automatically.

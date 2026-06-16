@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getPlatformAdapter } from "../platform/index.js";
+import { isContainerEnvironment } from "../platform/linux.js";
 import {
   parseLsofPorts,
   parseNetstatPorts,
@@ -25,6 +26,31 @@ describe("platform adapter selection", () => {
     expect(() => getPlatformAdapter("freebsd" as NodeJS.Platform)).toThrow(
       "Unsupported platform: freebsd",
     );
+  });
+});
+
+describe("linux container detection", () => {
+  const fsStub = (existingPaths: string[], cgroup = "") => ({
+    existsSync: (path: string) => existingPaths.includes(path),
+    readFileSync: () => cgroup,
+  });
+
+  it("supports explicit PORTA_CONTAINER opt-in", () => {
+    expect(isContainerEnvironment({ PORTA_CONTAINER: "1" }, fsStub([]))).toBe(true);
+  });
+
+  it("detects Docker and Podman marker files", () => {
+    expect(isContainerEnvironment({}, fsStub(["/.dockerenv"]))).toBe(true);
+    expect(isContainerEnvironment({}, fsStub(["/run/.containerenv"]))).toBe(true);
+  });
+
+  it("detects common cgroup container markers", () => {
+    expect(isContainerEnvironment({}, fsStub([], "0::/kubepods/burstable"))).toBe(true);
+    expect(isContainerEnvironment({}, fsStub([], "0::/system.slice/containerd.service"))).toBe(true);
+  });
+
+  it("returns false without explicit or host markers", () => {
+    expect(isContainerEnvironment({}, fsStub([], "0::/init.scope"))).toBe(false);
   });
 });
 

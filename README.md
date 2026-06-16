@@ -45,7 +45,7 @@ PORTA_HOST=192.168.1.23
 ```
 
 Devices on the same network can reach the proxy at `http://192.168.1.23:3170`.  
-Wildcard binds (`0.0.0.0`, `::`) and public IPs are rejected at startup for safety.
+Wildcard binds (`0.0.0.0`, `::`) are rejected by default and require `PORTA_ALLOW_WILDCARD=1`. Public IPs are rejected at startup for safety.
 
 > **Note:** to also access the Vite dev UI from LAN, start it with `--host`:
 >
@@ -103,6 +103,10 @@ constraints are inherent to its LSP-bridge architecture:
 > **not** from inside WSL2. Conversely, if Antigravity runs inside WSL2,
 > run Porta from WSL2, **not** from Windows. The two environments cannot
 > see each other's processes.
+
+When running the proxy in a container that does not expose standard Docker,
+Podman, Kubernetes, or containerd markers, set `PORTA_CONTAINER=1` so the proxy
+skips host PID checks and relies on network probing.
 
 ## Remote access with Cloudflare
 
@@ -184,6 +188,8 @@ Create `.env.production` in the repo root for the web build:
 ```bash
 # .env.production
 VITE_API_BASE=https://<YOUR_API_SUBDOMAIN>
+# Optional when hosting the web UI below a path such as https://example.com/porta/
+PORTA_BASE_PATH=/porta
 ```
 
 ### 4. Build and deploy the SPA
@@ -237,8 +243,10 @@ In your **Cloudflare Zero Trust** dashboard, under **Access > Applications**, yo
 **5. Route Frontend Traffic Through the Proxy**
 By default, the Porta frontend tries to fetch the API directly. To force it to use the secure Edge Proxy:
 1. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. 
-2. Without `VITE_API_BASE`, the frontend falls back to relative paths (`/api/*`), routing traffic through the Cloudflare Pages Edge proxy.
+2. Without `VITE_API_BASE`, the frontend falls back to relative paths (`/api/*`, or `/porta/api/*` when `PORTA_BASE_PATH=/porta`), routing traffic through the Cloudflare Pages Edge proxy. This repo includes Pages Function routes for both of those paths.
 3. Run `pnpm deploy` again.
+
+For other subpaths, either set `VITE_API_BASE` to the API route you expose or add a matching Pages Function route that strips the app prefix before proxying.
 
 > **Backwards Compatibility Note:** If `VITE_API_BASE` is defined, the frontend will bypass the proxy entirely and attempt to communicate directly with the backend. This is fully supported and recommended for local development (LAN access) or deployments where the backend is not protected by Cloudflare Access. Additionally, the proxy will gracefully skip Service Token injection if the `CF_ACCESS_CLIENT_ID` environment variables are missing.
 

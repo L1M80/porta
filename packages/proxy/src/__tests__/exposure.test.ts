@@ -31,6 +31,18 @@ describe("proxy exposure guard", () => {
     expect(() => assertSupportedListenHost("::")).toThrow(/Wildcard bind/);
   });
 
+  it("allows wildcard bind addresses only with explicit opt-in", () => {
+    expect(() =>
+      assertSupportedListenHost("0.0.0.0", { PORTA_ALLOW_WILDCARD: "1" } as NodeJS.ProcessEnv),
+    ).not.toThrow();
+    expect(() =>
+      assertSupportedListenHost("::", { PORTA_ALLOW_WILDCARD: "1" } as NodeJS.ProcessEnv),
+    ).not.toThrow();
+    expect(() =>
+      assertSupportedListenHost("[::]", { PORTA_ALLOW_WILDCARD: "1" } as NodeJS.ProcessEnv),
+    ).not.toThrow();
+  });
+
   it("rejects public addresses and unknown hostnames", () => {
     expect(isPrivateLanHost("8.8.8.8")).toBe(false);
     expect(() => assertSupportedListenHost("8.8.8.8")).toThrow(

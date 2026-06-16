@@ -1,5 +1,6 @@
-const BASE_URL = import.meta.env.BASE_URL ?? "/";
-const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+import { PORTA_BASE_PATH } from "../basePath";
+
+const cleanBaseUrl = PORTA_BASE_PATH.endsWith("/") ? PORTA_BASE_PATH.slice(0, -1) : PORTA_BASE_PATH;
 const API_BASE = import.meta.env.VITE_API_BASE ?? cleanBaseUrl;
 
 function previewBody(text: string): string {
