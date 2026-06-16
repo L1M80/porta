@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-16
+
+### Added
+
+- Language Server discovery now scans both `~/.gemini/antigravity/daemon` and
+  `~/.gemini/antigravity-ide/daemon`, so IDE-based Antigravity sessions are
+  discovered out of the box. (#78)
+
+### Fixed
+
+- **Antigravity 2.x routing and workspace display now recover correctly** when
+  conversations are disk-only, stored as `.db` files, or returned by an
+  unscoped hub Language Server. Porta now persists conversation affinity,
+  warms disk-only conversations, and keeps workspace metadata available after
+  proxy restarts. (#75, #81)
+- **Language Server RPC port discovery now rejects false-positive HTTP ports**
+  by requiring `GetWorkspaceInfos` probes to return `200 OK`, preventing local
+  non-RPC services from being selected as the Antigravity RPC endpoint. (#75,
+  #81)
+- **LAN/VPN development origins now work with `PORTA_HOST`** by binding the
+  Vite dev server to the configured host and adding that host to proxy CORS
+  allowlists. (#75, #81)
+- Workspace names now decode URI path segments consistently and collapse
+  Antigravity playground conversations under a stable sidebar label. (#75, #81)
+- Draft text is now preserved more reliably while switching between
+  conversations and new-message state. (#75, #81)
+
+### Security
+
+- Hardened markdown URI sanitization by stripping unsafe control characters
+  before protocol checks. (#75, #81)
+- Updated Vitest development dependencies. (#63)
+
 ## [0.8.0] - 2026-06-09
 
 ### Added
@@ -154,7 +187,9 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/L1M80/porta/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/L1M80/porta/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/L1M80/porta/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/L1M80/porta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/L1M80/porta/compare/v0.4.0...v0.5.0

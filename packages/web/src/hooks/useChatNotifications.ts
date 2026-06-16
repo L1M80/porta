@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getFilePermissionRequest } from "../components/StepCards";
+import { getFilePermissionRequest } from "../utils/stepCards";
 import { showBrowserNotification } from "../utils/browserNotifications";
 import type { TrajectoryStep } from "../types";
 

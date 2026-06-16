@@ -63,6 +63,9 @@ export function useStepsStream(
   const endOffsetRef = useRef(0);
   // Monotonic generation counter — prevents stale responses from overwriting.
   const genRef = useRef(0);
+  const bumpGeneration = useCallback(() => {
+    genRef.current += 1;
+  }, []);
 
   // ── HTTP: initial load (latest N steps) ──
   const totalRef = useRef(totalStepCount ?? 0);
@@ -272,7 +275,7 @@ export function useStepsStream(
   // ── Lifecycle: fetch + connect ──
   useEffect(() => {
     mountedRef.current = true;
-    genRef.current++;
+    bumpGeneration();
     stepsRef.current = [];
     baseOffsetRef.current = 0;
     endOffsetRef.current = 0;
@@ -291,14 +294,14 @@ export function useStepsStream(
 
     return () => {
       mountedRef.current = false;
-      genRef.current++;
+      bumpGeneration();
       clearReconnectTimer();
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, [initialFetch, connectWs, clearReconnectTimer]);
+  }, [initialFetch, connectWs, clearReconnectTimer, bumpGeneration]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;

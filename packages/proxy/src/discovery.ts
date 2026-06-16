@@ -155,7 +155,7 @@ async function discoverFromProcess(): Promise<LSInstance[]> {
  * Returns the first port that responds to GetWorkspaceInfos, or
  * falls back to the first candidate if none respond.
  */
-async function probeConnectRpcPort(
+export async function probeConnectRpcPort(
   candidates: number[],
   csrfToken: string,
 ): Promise<number> {
@@ -187,8 +187,7 @@ async function probeConnectRpcPort(
         res.on("end", () => {
           resolve(
             res.statusCode !== undefined &&
-              res.statusCode >= 200 &&
-              res.statusCode < 500,
+              res.statusCode === 200,
           );
         });
       });

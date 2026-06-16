@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { api } from "../api/client";
+import {
+  workspaceNameFromMetadata,
+  workspaceNameFromUri,
+} from "../utils/workspaceNames";
 
 /** Extract a short slug from a workspace URI: file:///home/user/work/porta → porta */
 function slugFromUri(uri: string): string {
-  return uri.replace("file://", "").split("/").pop() ?? uri;
+  return workspaceNameFromUri(uri);
 }
 
 /** Resolve a slug back to a full workspace URI using the workspace list. */
@@ -49,10 +53,7 @@ export function useWorkspaces(
       const ws = conv.summary.workspaces?.[0];
       if (!ws?.workspaceFolderAbsoluteUri) continue;
       const uri = ws.workspaceFolderAbsoluteUri;
-      const name =
-        ws.repository?.computedName?.split("/").pop() ??
-        uri.replace("file://", "").split("/").pop() ??
-        uri;
+      const name = workspaceNameFromMetadata(ws);
       fromConvs.set(uri, name);
     }
 
@@ -62,9 +63,7 @@ export function useWorkspaces(
       .then((data) => {
         const fromApi = (data.workspaceInfos ?? []).map((w) => ({
           uri: w.workspaceUri,
-          name:
-            w.workspaceUri.replace("file://", "").split("/").pop() ??
-            w.workspaceUri,
+          name: workspaceNameFromUri(w.workspaceUri),
         }));
         const merged = new Map<string, string>();
         for (const w of fromApi) merged.set(w.uri, w.name);
