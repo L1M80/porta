@@ -9,14 +9,6 @@ function textFromItems(items?: { text?: string }[]): string {
     .join("\n\n");
 }
 
-function textFromItems(items?: { text?: string }[]): string {
-  if (!items) return "";
-  return items
-    .filter((item) => item.text?.trim())
-    .map((item) => item.text!.trim())
-    .join("\n\n");
-}
-
 /** Extract displayable messages from raw trajectory steps */
 export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
