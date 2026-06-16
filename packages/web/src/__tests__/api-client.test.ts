@@ -53,7 +53,7 @@ describe("api client", () => {
     );
   });
 
-  it("uses subpath for API calls when PORTA_BASE_PATH is set", async () => {
+  it("keeps same-origin API calls rooted at /api when PORTA_BASE_PATH is set", async () => {
     const fetchStub = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
@@ -65,7 +65,7 @@ describe("api client", () => {
     const api = await loadApi({ PORTA_BASE_PATH: "/porta/" });
     await api.health();
     expect(fetchStub).toHaveBeenCalledWith(
-      "/porta/api/health",
+      "/api/health",
       expect.objectContaining({
         headers: expect.objectContaining({ "Content-Type": "application/json" }),
       }),

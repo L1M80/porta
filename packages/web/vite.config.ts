@@ -57,14 +57,10 @@ export default defineConfig(({ mode }) => {
       port: Number(env.PORTA_WEB_PORT || process.env.PORTA_WEB_PORT || 3070),
       ...(allowedHosts !== undefined ? { allowedHosts } : {}),
       proxy: {
-        [`${basePath}api`]: {
+        "/api": {
           target: toHttpOrigin(proxyHost, proxyPort),
           changeOrigin: true,
           ws: true,
-          rewrite: (path) => {
-            const prefix = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-            return prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
-          },
           headers: {
             ...(env.CF_ACCESS_CLIENT_ID ? { "CF-Access-Client-Id": env.CF_ACCESS_CLIENT_ID } : {}),
             ...(env.CF_ACCESS_CLIENT_SECRET ? { "CF-Access-Client-Secret": env.CF_ACCESS_CLIENT_SECRET } : {}),
