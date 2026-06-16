@@ -1,5 +1,5 @@
 import type { ChatMessage, TrajectoryStep } from "../types";
-import { getFilePermissionRequest } from "../components/StepCards";
+import { getFilePermissionRequest } from "../utils/stepCards";
 
 function textFromItems(items?: { text?: string }[]): string {
   if (!items) return "";

@@ -8,17 +8,121 @@
 import { LSDiscovery, type LSInstance } from "./discovery.js";
 import { getPrimaryWorkspaceUri } from "./metadata.js";
 import { RPCClient, RPCError } from "./rpc.js";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 // Module-scoped singletons — shared by all route modules
 export const discovery = new LSDiscovery();
 export const rpc = new RPCClient(discovery);
+
+const AFFINITY_FILE = join(
+  homedir(),
+  ".gemini",
+  "antigravity",
+  "porta_affinity.json",
+);
+
+function isTestRuntime(): boolean {
+  return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+}
+
+export class PersistentMap extends Map<string, string> {
+  private readonly persistEnabled: boolean;
+  private warned = false;
+
+  constructor(
+    private readonly filePath = AFFINITY_FILE,
+    options: { persist?: boolean } = {},
+  ) {
+    super();
+    this.persistEnabled = options.persist ?? !isTestRuntime();
+    this.load();
+  }
+
+  override set(key: string, value: string): this {
+    super.set(key, value);
+    this.persist();
+    return this;
+  }
+
+  override delete(key: string): boolean {
+    const deleted = super.delete(key);
+    if (deleted) this.persist();
+    return deleted;
+  }
+
+  override clear(): void {
+    if (this.size === 0) return;
+    super.clear();
+    this.persist();
+  }
+
+  private load(): void {
+    if (!this.persistEnabled || !existsSync(this.filePath)) return;
+
+    try {
+      const raw = readFileSync(this.filePath, "utf-8");
+      const parsed = JSON.parse(raw) as unknown;
+      const entries = Array.isArray(parsed)
+        ? parsed
+        : Object.entries(
+            parsed && typeof parsed === "object"
+              ? (parsed as Record<string, unknown>)
+              : {},
+          );
+
+      for (const entry of entries) {
+        if (!Array.isArray(entry)) continue;
+        const [key, value] = entry;
+        if (typeof key === "string" && typeof value === "string") {
+          super.set(key, value);
+        }
+      }
+    } catch (err) {
+      this.warnOnce("read", err);
+    }
+  }
+
+  private persist(): void {
+    if (!this.persistEnabled) return;
+
+    try {
+      mkdirSync(dirname(this.filePath), { recursive: true });
+      const tmpPath = `${this.filePath}.tmp`;
+      writeFileSync(
+        tmpPath,
+        `${JSON.stringify(Object.fromEntries(this), null, 2)}\n`,
+        "utf-8",
+      );
+      renameSync(tmpPath, this.filePath);
+    } catch (err) {
+      this.warnOnce("write", err);
+    }
+  }
+
+  private warnOnce(action: "read" | "write", err: unknown): void {
+    if (this.warned) return;
+    this.warned = true;
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[affinity] failed to ${action} ${this.filePath}: ${message}`,
+    );
+  }
+}
 
 /**
  * Conversation → owning workspaceId affinity cache.
  * Built from conversation metadata (workspaces[0].workspaceFolderAbsoluteUri)
  * and used to route RPC calls to the correct LS instance.
  */
-export const conversationAffinity = new Map<string, string>(); // cascadeId → workspaceId
+export const conversationAffinity = new PersistentMap(); // cascadeId → workspaceId
 export const conversationInstanceAffinity = new Map<string, LSInstance>(); // cascadeId → unscoped hub LS
 
 /** Convert a workspace URI to the LS workspaceId format. */

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { uriToWorkspaceId, normalizeWorkspaceId } from "../routing.js";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  uriToWorkspaceId,
+  normalizeWorkspaceId,
+  PersistentMap,
+} from "../routing.js";
 
 describe("uriToWorkspaceId", () => {
   it("converts file:/// URI to file_ prefixed ID", () => {
@@ -65,5 +72,37 @@ describe("normalizeWorkspaceId", () => {
 
   it("replaces all colons (edge case: multiple drives is impossible but safe)", () => {
     expect(normalizeWorkspaceId("a:b:c")).toBe("a_3ab_3ac");
+  });
+});
+
+describe("PersistentMap", () => {
+  it("persists string entries and reloads them", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "porta-affinity-"));
+    const file = join(dir, "porta_affinity.json");
+
+    try {
+      const map = new PersistentMap(file, { persist: true });
+      map.set("cascade-a", "file_home_user_project");
+      map.set("cascade-b", "file_home_user_other");
+
+      expect(JSON.parse(await readFile(file, "utf-8"))).toEqual({
+        "cascade-a": "file_home_user_project",
+        "cascade-b": "file_home_user_other",
+      });
+
+      const reloaded = new PersistentMap(file, { persist: true });
+      expect(reloaded.get("cascade-a")).toBe("file_home_user_project");
+      expect(reloaded.get("cascade-b")).toBe("file_home_user_other");
+
+      reloaded.delete("cascade-a");
+      expect(JSON.parse(await readFile(file, "utf-8"))).toEqual({
+        "cascade-b": "file_home_user_other",
+      });
+
+      reloaded.clear();
+      expect(JSON.parse(await readFile(file, "utf-8"))).toEqual({});
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

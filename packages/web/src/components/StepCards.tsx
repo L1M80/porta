@@ -16,27 +16,6 @@ function basename(uriOrPath: string): string {
   return cleaned.split("/").pop() ?? cleaned;
 }
 
-/**
- * Extract a filePermissionRequest from any of the tool data fields
- * where the LS may embed it, or from the step's top-level field.
- *
- * The LS embeds filePermissionRequest in 6 step types:
- * CodeAction, ViewFile, ListDirectory, GrepSearch, ViewFileOutline, ViewCodeItem.
- */
-export function getFilePermissionRequest(
-  step: TrajectoryStep,
-): FilePermissionRequest | undefined {
-  return (
-    step.filePermissionRequest ??
-    step.viewFile?.filePermissionRequest ??
-    step.listDirectory?.filePermissionRequest ??
-    step.codeAction?.filePermissionRequest ??
-    step.grepSearch?.filePermissionRequest ??
-    step.viewFileOutline?.filePermissionRequest ??
-    step.viewCodeItem?.filePermissionRequest
-  );
-}
-
 /** Inline copy button for step cards */
 function StepCopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);

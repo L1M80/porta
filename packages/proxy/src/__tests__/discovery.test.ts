@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer, type Server } from "node:http";
 import type { LSInstance } from "../discovery.js";
-import { LSDiscovery } from "../discovery.js";
+import { LSDiscovery, probeConnectRpcPort } from "../discovery.js";
 
 function makeInstance(overrides: Partial<LSInstance> = {}): LSInstance {
   return {
@@ -35,6 +36,33 @@ function deferred<T>() {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+async function listenWithStatus(statusCode: number): Promise<{
+  server: Server;
+  port: number;
+}> {
+  const server = createServer((_req, res) => {
+    res.statusCode = statusCode;
+    res.end("{}");
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Expected TCP server address");
+  }
+
+  return { server, port: address.port };
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
 }
 
 describe("LSDiscovery caching and lookup", () => {
@@ -207,5 +235,21 @@ describe("LSDiscovery caching and lookup", () => {
     await discovery.getInstance();
 
     expect(mockDiscover).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("probeConnectRpcPort", () => {
+  it("skips non-200 responses when discovering the RPC port", async () => {
+    const notRpc = await listenWithStatus(404);
+    const rpc = await listenWithStatus(200);
+
+    try {
+      await expect(
+        probeConnectRpcPort([notRpc.port, rpc.port], "test-token"),
+      ).resolves.toBe(rpc.port);
+    } finally {
+      await closeServer(notRpc.server);
+      await closeServer(rpc.server);
+    }
   });
 });
