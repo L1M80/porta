@@ -21,7 +21,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, new RPCError("not found", "not_found"));
     expect(c.result).toEqual({
-      body: { error: "not found", code: "not_found" },
+      body: { error: "Internal Server Error", code: "not_found" },
       status: 502,
     });
   });
@@ -30,7 +30,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     handleRPCError(c, new RPCError("denied", "permission_denied"));
     expect(c.result).toEqual({
-      body: { error: "denied", code: "permission_denied" },
+      body: { error: "Internal Server Error", code: "permission_denied" },
       status: 502,
     });
   });
@@ -90,7 +90,7 @@ describe("handleRPCError — extended edge cases", () => {
     const c = mockContext();
     const msg = 'RPC failed: status=503, body="{"error":"timeout"}"';
     handleRPCError(c, new RPCError(msg, "unavailable"));
-    expect(c.result?.body).toEqual({ error: msg, code: "unavailable" });
+    expect(c.result?.body).toEqual({ error: "Internal Server Error", code: "unavailable" });
     expect(c.result?.status).toBe(503);
   });
 });

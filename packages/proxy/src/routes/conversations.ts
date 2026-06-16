@@ -325,7 +325,11 @@ export function registerConversationRoutes(app: Hono): void {
         pinnedInstance = sc.instance;
         if (sc.count > 0) {
           stepCount = sc.count;
-          const tailSize = parseInt(c.req.query("tail")!, 10);
+          let tailSize = parseInt(c.req.query("tail")!, 10);
+          if (isNaN(tailSize) || tailSize <= 0) {
+            tailSize = 100;
+          }
+          tailSize = Math.min(tailSize, MAX_STEPS_LIMIT);
           resolvedOffset = Math.max(0, stepCount - tailSize);
         }
       }
