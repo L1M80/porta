@@ -6,16 +6,23 @@ import { RPCError } from "./rpc.js";
 
 export function handleRPCError(c: { json: Function }, err: unknown) {
   if (err instanceof RPCError) {
-    console.error("[Porta RPC Error]", err);
     const status =
       err.code === "unauthenticated"
         ? 401
         : err.code === "unavailable"
           ? 503
           : 502;
-    return c.json({ error: "Internal Server Error", code: err.code }, status);
+    const clientMessage =
+      err.code === "unauthenticated"
+        ? "Authentication failed"
+        : err.code === "unavailable"
+          ? "Language Server unavailable"
+          : "Upstream request failed";
+
+    console.error("[Porta Proxy RPC Error]", err);
+    return c.json({ error: clientMessage, code: err.code }, status);
   }
-  const message = err instanceof Error ? err.message : String(err);
+
   console.error("[Porta Proxy Error]", err);
   return c.json({ error: "Internal Server Error" }, 500);
 }
