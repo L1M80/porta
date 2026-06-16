@@ -336,9 +336,22 @@ export function registerConversationRoutes(app: Hono): void {
 
       // We need to fetch until we get what we came for, or we run out of steps.
       let currentOffset = resolvedOffset;
-      const targetCount =
+      let targetCount =
         limit ?? (stepCount ? stepCount - resolvedOffset : 100);
+      targetCount = Math.min(targetCount, MAX_STEPS_LIMIT);
       let consecutiveSkips = 0;
+
+      const pushPlaceholders = (count: number, reason: string) => {
+        const remainingTarget = targetCount - stepsArray.length;
+        const remainingSkips = MAX_SKIP - consecutiveSkips;
+        const placeholderCount = Math.max(
+          0,
+          Math.min(count, remainingTarget, remainingSkips),
+        );
+        for (let s = 0; s < placeholderCount; s++) {
+          stepsArray.push(placeholderStep(reason));
+        }
+      };
 
       while (stepsArray.length < targetCount) {
         try {
@@ -364,12 +377,10 @@ export function registerConversationRoutes(app: Hono): void {
           if (badOffset >= 0) {
             // Known oversized step — skip directly
             const skipCount = badOffset - currentOffset + 1;
-            for (let s = 0; s < skipCount; s++)
-              stepsArray.push(
-                placeholderStep(
-                  "Language Server: step exceeds 4MB protobuf limit",
-                ),
-              );
+            pushPlaceholders(
+              skipCount,
+              "Language Server: step exceeds 4MB protobuf limit",
+            );
             currentOffset = badOffset + 1;
             consecutiveSkips += skipCount;
             if (consecutiveSkips >= MAX_SKIP) break;
@@ -387,10 +398,10 @@ export function registerConversationRoutes(app: Hono): void {
               pinnedInstance,
             );
             const skipCount = nextValid - currentOffset;
-            for (let s = 0; s < skipCount; s++)
-              stepsArray.push(
-                placeholderStep("Language Server: invalid UTF-8 in step data"),
-              );
+            pushPlaceholders(
+              skipCount,
+              "Language Server: invalid UTF-8 in step data",
+            );
             console.log(
               `Skipping corrupted range [${currentOffset}, ${nextValid - 1}] (${skipCount} steps)`,
             );

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LSInstance } from "../discovery.js";
+import { RPCError } from "../rpc.js";
 
 const mockGetInstances = vi.fn<() => Promise<LSInstance[]>>();
 const mockRpcCall = vi.fn<
@@ -9,6 +10,8 @@ const mockRpcCall = vi.fn<
 const mockScanDiskConversations = vi.fn<
   () => Promise<{ id: string; mtime: string }[]>
 >();
+const mockRpcForConversation = vi.fn();
+const mockGetStepCount = vi.fn();
 
 const conversationAffinity = new Map<string, string>();
 const conversationInstanceAffinity = new Map<string, LSInstance>();
@@ -22,6 +25,8 @@ vi.mock("../routing.js", async (importOriginal) => {
       getInstance: async () => (await mockGetInstances())[0] ?? null,
     },
     rpc: { call: mockRpcCall },
+    rpcForConversation: mockRpcForConversation,
+    getStepCount: mockGetStepCount,
     conversationAffinity,
     conversationInstanceAffinity,
   };
@@ -237,5 +242,114 @@ describe("POST /api/conversations", () => {
       }),
       hubLS,
     );
+  });
+});
+
+describe("GET /api/conversations/:id/steps", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+  });
+
+  it("caps limit to MAX_STEPS_LIMIT", async () => {
+    mockRpcForConversation.mockImplementation(async (method, _id, body) => {
+      if (method === "GetCascadeTrajectorySteps") {
+        return {
+          steps: Array.from({ length: 200 }, (_, i) => ({
+            id: body.stepOffset + i,
+          })),
+        };
+      }
+      return {};
+    });
+
+    const res = await app().request("/api/conversations/c-1/steps?limit=999");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.steps).toHaveLength(500);
+    expect(mockRpcForConversation).toHaveBeenCalledTimes(3);
+  });
+
+  it("caps oversized tail to MAX_STEPS_LIMIT", async () => {
+    const hubLS = makeInstance({ pid: 10 });
+    mockRpcForConversation.mockImplementation(async (method, _id, body) => {
+      if (method === "GetCascadeTrajectorySteps") {
+        return {
+          steps: Array.from({ length: 200 }, (_, i) => ({
+            id: body.stepOffset + i,
+          })),
+        };
+      }
+      return {};
+    });
+    mockGetStepCount.mockResolvedValue({ count: 2000, instance: hubLS });
+
+    const res = await app().request("/api/conversations/c-1/steps?tail=99999");
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.offset).toBe(1500);
+    expect(body.steps).toHaveLength(500);
+
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "GetCascadeTrajectorySteps",
+      "c-1",
+      expect.objectContaining({ stepOffset: 1500 }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it("handles invalid tail gracefully", async () => {
+    const hubLS = makeInstance({ pid: 10 });
+    mockRpcForConversation.mockImplementation(async (method) => {
+      if (method === "GetCascadeTrajectorySteps") {
+        return { steps: [] };
+      }
+      return {};
+    });
+    mockGetStepCount.mockResolvedValue({ count: 2000, instance: hubLS });
+
+    const res = await app().request("/api/conversations/c-1/steps?tail=-50");
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.offset).toBe(1900);
+    expect(body.steps).toHaveLength(0);
+
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "GetCascadeTrajectorySteps",
+      "c-1",
+      expect.objectContaining({ stepOffset: 1900 }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it("caps oversized-step placeholders before allocating them", async () => {
+    mockRpcForConversation.mockRejectedValue(
+      new RPCError("step at offset 999999 larger than 4194304 byte limit", "internal"),
+    );
+
+    const res = await app().request("/api/conversations/c-1/steps?limit=20");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.steps).toHaveLength(20);
+  });
+
+  it("caps invalid UTF-8 placeholders before allocating them", async () => {
+    const hubLS = makeInstance({ pid: 10 });
+    mockGetStepCount.mockResolvedValue({ count: 999999, instance: hubLS });
+    mockRpcForConversation.mockRejectedValue(
+      new RPCError("invalid UTF-8 in step data", "internal"),
+    );
+
+    const res = await app().request("/api/conversations/c-1/steps?limit=20");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.steps).toHaveLength(20);
   });
 });
