@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const BASE_URL = import.meta.env.BASE_URL ?? "/";
+const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+const API_BASE = import.meta.env.VITE_API_BASE ?? cleanBaseUrl;
 
 function previewBody(text: string): string {
   const singleLine = text.replace(/\s+/g, " ").trim();

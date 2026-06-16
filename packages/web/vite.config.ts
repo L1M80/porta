@@ -19,6 +19,10 @@ export default defineConfig(({ mode }) => {
 
   const rawBasePath = env.PORTA_BASE_PATH || process.env.PORTA_BASE_PATH || "/";
   const basePath = rawBasePath.endsWith("/") ? rawBasePath : `${rawBasePath}/`;
+  const allowedHostsRaw = env.PORTA_ALLOWED_HOSTS || process.env.PORTA_ALLOWED_HOSTS;
+  const allowedHosts = allowedHostsRaw === "true" || allowedHostsRaw === "all" || allowedHostsRaw === "*"
+    ? true
+    : (allowedHostsRaw ? allowedHostsRaw.split(",") : undefined);
 
   return {
     base: basePath,
@@ -46,7 +50,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.PORTA_HOST || process.env.PORTA_HOST || "127.0.0.1",
       port: Number(env.PORTA_WEB_PORT || process.env.PORTA_WEB_PORT || 3070),
-      allowedHosts: true,
+      ...(allowedHosts !== undefined ? { allowedHosts } : {}),
       proxy: {
         [`${basePath}api`]: {
           target: toHttpOrigin(proxyHost, proxyPort),

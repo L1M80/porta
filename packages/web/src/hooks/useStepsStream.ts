@@ -142,7 +142,9 @@ export function useStepsStream(
         url = `${wsBase}/api/conversations/${cascadeId}/ws`;
       } else {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        url = `${protocol}//${window.location.host}/api/conversations/${cascadeId}/ws`;
+        const baseUrl = import.meta.env.BASE_URL ?? "/";
+        const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+        url = `${protocol}//${window.location.host}${cleanBaseUrl}/api/conversations/${cascadeId}/ws`;
       }
       const gen = genRef.current;
 
