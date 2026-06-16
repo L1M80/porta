@@ -256,6 +256,10 @@ async function queryWorkspaceInfo(
         res.on("end", () => {
           try {
             const data = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            if (!data || typeof data !== "object" || !("workspaceInfos" in data)) {
+              resolve(undefined);
+              return;
+            }
             const wsUri = data.workspaceInfos?.[0]?.workspaceUri as
               | string
               | undefined;
@@ -264,7 +268,7 @@ async function queryWorkspaceInfo(
               workspaceId: wsUri ? uriToWorkspaceId(wsUri) : undefined,
             });
           } catch {
-            resolve({ reachable: true });
+            resolve(undefined);
           }
         });
       });
