@@ -1,5 +1,4 @@
 import { marked, type Tokens } from "marked";
-import { PORTA_BASE_PATH } from "../basePath";
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const SAFE_IMAGE_PROTOCOLS = new Set(["http:", "https:"]);
@@ -112,8 +111,7 @@ const markdownCache = new Map<string, string>();
 
 /** Convert file:// URIs in markdown to proxy URLs */
 export function rewriteFileUris(text: string): string {
-  const cleanBaseUrl = PORTA_BASE_PATH.endsWith("/") ? PORTA_BASE_PATH.slice(0, -1) : PORTA_BASE_PATH;
-  const base = import.meta.env.VITE_API_BASE ?? cleanBaseUrl;
+  const base = import.meta.env.VITE_API_BASE ?? "";
   return text.replace(
     /!\[([^\]]*)\]\((file:\/\/[^)]+)\)/g,
     (_match, alt, uri) =>

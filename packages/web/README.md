@@ -23,7 +23,7 @@ pnpm test       # Vitest
 
 | Variable          | Description                                                                                                                     |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `PORTA_BASE_PATH` | Optional deployment subpath such as `/porta`. Drives Vite asset URLs, React Router basename, relative API URLs, and PWA scope. |
-| `VITE_API_BASE`   | Absolute API URL for production builds. When unset, API calls are relative to `PORTA_BASE_PATH` and Vite proxies them locally. |
+| `PORTA_BASE_PATH` | Optional deployment subpath such as `/porta`. Drives Vite asset URLs, React Router basename, and PWA scope. |
+| `VITE_API_BASE`   | Absolute API URL for production builds. When unset, same-origin API calls stay rooted at `/api/*`. |
 
 The `envDir` in `vite.config.ts` is set to the repo root (`../..` from `packages/web`), so `.env*` files in the repo root are picked up automatically.

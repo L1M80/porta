@@ -1,7 +1,4 @@
-import { PORTA_BASE_PATH } from "../basePath";
-
-const cleanBaseUrl = PORTA_BASE_PATH.endsWith("/") ? PORTA_BASE_PATH.slice(0, -1) : PORTA_BASE_PATH;
-const API_BASE = import.meta.env.VITE_API_BASE ?? cleanBaseUrl;
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 function previewBody(text: string): string {
   const singleLine = text.replace(/\s+/g, " ").trim();

@@ -243,10 +243,8 @@ In your **Cloudflare Zero Trust** dashboard, under **Access > Applications**, yo
 **5. Route Frontend Traffic Through the Proxy**
 By default, the Porta frontend tries to fetch the API directly. To force it to use the secure Edge Proxy:
 1. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. 
-2. Without `VITE_API_BASE`, the frontend falls back to relative paths (`/api/*`, or `/porta/api/*` when `PORTA_BASE_PATH=/porta`), routing traffic through the Cloudflare Pages Edge proxy. This repo includes Pages Function routes for both of those paths.
+2. Without `VITE_API_BASE`, the frontend falls back to root-relative API paths (`/api/*`), routing traffic through the Cloudflare Pages Edge proxy. `PORTA_BASE_PATH` only changes the frontend asset, router, and PWA paths.
 3. Run `pnpm deploy` again.
-
-For other subpaths, either set `VITE_API_BASE` to the API route you expose or add a matching Pages Function route that strips the app prefix before proxying.
 
 > **Backwards Compatibility Note:** If `VITE_API_BASE` is defined, the frontend will bypass the proxy entirely and attempt to communicate directly with the backend. This is fully supported and recommended for local development (LAN access) or deployments where the backend is not protected by Cloudflare Access. Additionally, the proxy will gracefully skip Service Token injection if the `CF_ACCESS_CLIENT_ID` environment variables are missing.
 
