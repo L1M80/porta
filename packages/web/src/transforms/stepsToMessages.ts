@@ -1,5 +1,13 @@
 import type { ChatMessage, TrajectoryStep } from "../types";
-import { getFilePermissionRequest } from "../components/StepCards";
+import { getFilePermissionRequest } from "../utils/stepCards";
+
+function textFromItems(items?: { text?: string }[]): string {
+  if (!items) return "";
+  return items
+    .filter((item) => item.text?.trim())
+    .map((item) => item.text!.trim())
+    .join("\n\n");
+}
 
 function textFromItems(items?: { text?: string }[]): string {
   if (!items) return "";

@@ -21,6 +21,33 @@ describe("origin policy", () => {
     );
   });
 
+  it("allows origins for PORTA_HOST on any port", () => {
+    const allowedOrigins = getAllowedOrigins({
+      PORTA_HOST: "172.20.1.2",
+    });
+
+    expect(isAllowedOrigin("http://172.20.1.2:5173", allowedOrigins)).toBe(
+      true,
+    );
+    expect(isAllowedOrigin("https://172.20.1.2", allowedOrigins)).toBe(true);
+    expect(isAllowedOrigin("http://172.20.1.3:5173", allowedOrigins)).toBe(
+      false,
+    );
+  });
+
+  it("allows bracketed IPv6 PORTA_HOST origins", () => {
+    const allowedOrigins = getAllowedOrigins({
+      PORTA_HOST: "fd7a:115c:a1e0::1",
+    });
+
+    expect(isAllowedOrigin("http://[fd7a:115c:a1e0::1]:5173", allowedOrigins)).toBe(
+      true,
+    );
+    expect(isAllowedOrigin("http://fd7a:115c:a1e0::1:5173", allowedOrigins)).toBe(
+      false,
+    );
+  });
+
   it("maps rejected origins to null for CORS middleware", () => {
     const allowedOrigins = getAllowedOrigins({});
 

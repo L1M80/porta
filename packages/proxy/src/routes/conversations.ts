@@ -191,6 +191,9 @@ export function registerConversationRoutes(app: Hono): void {
               const normalizedSummary =
                 withNormalizedConversationWorkspaces(summary);
               const wsUri = getPrimaryWorkspaceUri(normalizedSummary);
+              if (wsUri) {
+                conversationAffinity.set(id, uriToWorkspaceId(wsUri));
+              }
 
               // Skip conversations whose workspace isn't served by any scoped
               // running LS. Antigravity 2.x exposes a hub LS with no

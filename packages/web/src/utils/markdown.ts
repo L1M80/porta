@@ -38,14 +38,22 @@ function decodeHtmlEntities(text: string): string {
   );
 }
 
+function stripUnsafeUriChars(text: string): string {
+  return Array.from(text)
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return code > 0x20 && (code < 0x7f || code > 0x9f);
+    })
+    .join("");
+}
+
 function isSafeUri(
   uri: string | null | undefined,
   allowedProtocols: ReadonlySet<string>,
 ): boolean {
   if (!uri) return false;
 
-  const normalized = decodeHtmlEntities(uri.trim())
-    .replace(/[\u0000-\u0020\u007f-\u009f]+/g, "")
+  const normalized = stripUnsafeUriChars(decodeHtmlEntities(uri.trim()))
     .toLowerCase();
 
   if (!normalized) return false;

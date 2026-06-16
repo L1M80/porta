@@ -23,8 +23,8 @@ import {
   CommandCard,
   CodeActionCard,
   FilePermissionCard,
-  getFilePermissionRequest,
 } from "./StepCards";
+import { getFilePermissionRequest } from "../utils/stepCards";
 import {
   IconCopy,
   IconCheck,
