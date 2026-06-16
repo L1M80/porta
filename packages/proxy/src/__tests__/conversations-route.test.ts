@@ -132,6 +132,48 @@ describe("GET /api/conversations", () => {
       { workspaceFolderAbsoluteUri: "file:///home/user/project" },
     ]);
   });
+
+  it("learns affinity before filtering inactive scoped workspace summaries", async () => {
+    const scopedLS = makeInstance({
+      pid: 4,
+      workspaceId: "file_home_user_active",
+    });
+    mockGetInstances.mockResolvedValue([scopedLS]);
+    mockScanDiskConversations.mockResolvedValue([
+      { id: "c-inactive", mtime: "2026-06-01T00:00:00.000Z" },
+    ]);
+    mockRpcCall.mockImplementation(async (method) => {
+      if (method === "GetAllCascadeTrajectories") {
+        return {
+          trajectorySummaries: {
+            "c-inactive": {
+              summary: "Inactive workspace",
+              stepCount: 9,
+              lastModifiedTime: "2026-06-01T00:00:00.000Z",
+              workspaces: [
+                { workspaceFolderAbsoluteUri: "file:///home/user/inactive" },
+              ],
+            },
+          },
+        };
+      }
+      return { steps: [] };
+    });
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(conversationAffinity.get("c-inactive")).toBe(
+      "file_home_user_inactive",
+    );
+    expect(body.trajectorySummaries["c-inactive"]).toMatchObject({
+      _diskOnly: true,
+      workspaces: [
+        { workspaceFolderAbsoluteUri: "file:///home/user/inactive" },
+      ],
+    });
+  });
 });
 
 describe("POST /api/conversations", () => {
