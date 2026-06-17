@@ -231,6 +231,26 @@ function uriToWorkspaceId(uri: string): string {
 async function queryWorkspaceInfo(
   inst: LSInstance,
 ): Promise<{ reachable: boolean; workspaceId?: string }> {
+  const isWorkspaceInfoResponse = (
+    data: unknown,
+  ): data is {
+    workspaceInfos?: { workspaceUri?: string }[];
+    homeDirPath?: string;
+    homeDirUri?: string;
+  } => {
+    if (!data || typeof data !== "object") return false;
+    const payload = data as {
+      workspaceInfos?: unknown;
+      homeDirPath?: unknown;
+      homeDirUri?: unknown;
+    };
+    return (
+      Array.isArray(payload.workspaceInfos) ||
+      typeof payload.homeDirPath === "string" ||
+      typeof payload.homeDirUri === "string"
+    );
+  };
+
   const doPost = (
     protocol: TransportProtocol,
   ): Promise<{ reachable: boolean; workspaceId?: string } | undefined> =>
@@ -254,8 +274,17 @@ async function queryWorkspaceInfo(
         const chunks: Buffer[] = [];
         res.on("data", (chunk: Buffer) => chunks.push(chunk));
         res.on("end", () => {
+          if (res.statusCode !== 200) {
+            resolve(undefined);
+            return;
+          }
+
           try {
             const data = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            if (!isWorkspaceInfoResponse(data)) {
+              resolve(undefined);
+              return;
+            }
             const wsUri = data.workspaceInfos?.[0]?.workspaceUri as
               | string
               | undefined;
@@ -264,7 +293,7 @@ async function queryWorkspaceInfo(
               workspaceId: wsUri ? uriToWorkspaceId(wsUri) : undefined,
             });
           } catch {
-            resolve({ reachable: true });
+            resolve(undefined);
           }
         });
       });
