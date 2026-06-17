@@ -21,7 +21,7 @@ describe("handleRPCError", () => {
     const c = mockContext();
     handleRPCError(c, new RPCError("bad token", "unauthenticated"));
     expect(c.result).toEqual({
-      body: { error: "bad token", code: "unauthenticated" },
+      body: { error: "Authentication failed", code: "unauthenticated" },
       status: 401,
     });
   });
@@ -30,7 +30,7 @@ describe("handleRPCError", () => {
     const c = mockContext();
     handleRPCError(c, new RPCError("no LS", "unavailable"));
     expect(c.result).toEqual({
-      body: { error: "no LS", code: "unavailable" },
+      body: { error: "Language Server unavailable", code: "unavailable" },
       status: 503,
     });
   });
@@ -39,25 +39,25 @@ describe("handleRPCError", () => {
     const c = mockContext();
     handleRPCError(c, new RPCError("rpc fail", "internal"));
     expect(c.result).toEqual({
-      body: { error: "rpc fail", code: "internal" },
+      body: { error: "Upstream request failed", code: "internal" },
       status: 502,
     });
   });
 
-  it("handles generic Error", () => {
+  it("handles generic Error by redacting details", () => {
     const c = mockContext();
     handleRPCError(c, new Error("something unexpected"));
     expect(c.result).toEqual({
-      body: { error: "something unexpected" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
 
-  it("handles string errors", () => {
+  it("handles string errors by redacting details", () => {
     const c = mockContext();
     handleRPCError(c, "raw string error");
     expect(c.result).toEqual({
-      body: { error: "raw string error" },
+      body: { error: "Internal Server Error" },
       status: 500,
     });
   });
