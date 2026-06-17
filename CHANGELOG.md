@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-17
+
+### Added
+
+- **Container and reverse-proxy deployments are now easier to run** with
+  container-aware Language Server discovery, explicit wildcard bind opt-in via
+  `PORTA_ALLOW_WILDCARD=1`, configurable Vite dev host allowlists, and
+  `PORTA_BASE_PATH` support for subpath-hosted frontend assets, routing, and
+  PWA scope. (#85)
+
+### Fixed
+
+- Daemon Language Server entries now require a valid `GetWorkspaceInfos`
+  network response before being kept, preventing stale daemon files from
+  selecting unrelated local HTTP services in container deployments. (#85)
+- Proxy steps responses now cap effective payload size across `limit`, `tail`,
+  default fetches, and corrupted-step placeholders. (#86)
+
+### Security
+
+- Proxy error responses now redact raw thrown values and upstream RPC details,
+  returning only safe client-facing messages while logging full details
+  server-side. (#86)
+
 ## [0.9.0] - 2026-06-16
 
 ### Added
@@ -187,7 +211,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/L1M80/porta/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/L1M80/porta/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/L1M80/porta/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/L1M80/porta/compare/v0.6.0...v0.7.0
