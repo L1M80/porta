@@ -1,4 +1,8 @@
-import type { FilePermissionRequest, TrajectoryStep } from "../types";
+import type {
+  AskQuestionRequest,
+  FilePermissionRequest,
+  TrajectoryStep,
+} from "../types";
 
 /**
  * Extract a filePermissionRequest from any of the tool data fields
@@ -19,4 +23,13 @@ export function getFilePermissionRequest(
     step.viewFileOutline?.filePermissionRequest ??
     step.viewCodeItem?.filePermissionRequest
   );
+}
+
+export function getAskQuestionRequest(
+  step: TrajectoryStep,
+): AskQuestionRequest | undefined {
+  const request = step.askQuestion ?? step.requestedInteraction?.askQuestion;
+  return request?.questions && request.questions.length > 0
+    ? request
+    : undefined;
 }

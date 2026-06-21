@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   IconCopy,
   IconCheck,
@@ -7,8 +7,15 @@ import {
   IconFile,
   IconFileText,
   IconLock,
+  IconMessageCircle,
 } from "./Icons";
-import type { TrajectoryStep, FilePermissionRequest } from "../types";
+import type {
+  AskQuestionEntry,
+  AskQuestionOption,
+  AskQuestionRequest,
+  TrajectoryStep,
+  FilePermissionRequest,
+} from "../types";
 
 /** Extract file basename from a URI or path */
 function basename(uriOrPath: string): string {
@@ -116,6 +123,240 @@ export function FilePermissionCard({
             onClick={() => handleResponse(true, PERMISSION_SCOPE_CONVERSATION)}
           >
             Allow This Conversation
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Ask Question Card ──
+
+interface AskQuestionCardProps {
+  step: TrajectoryStep;
+  askQuestionRequest: AskQuestionRequest;
+  fallbackStepIndex: number;
+  onAskQuestion?: (
+    trajectoryId: string,
+    stepIndex: number,
+    responses: AskQuestionEntry[],
+    cancelled?: boolean,
+  ) => Promise<void>;
+}
+
+function optionId(
+  questionIndex: number,
+  optionIndex: number,
+  option: AskQuestionOption,
+): string {
+  return option.id ?? option.text ?? `${questionIndex}-${optionIndex}`;
+}
+
+function isWriteInOption(option: AskQuestionOption): boolean {
+  return /\b(other|custom|write)\b/i.test(option.text ?? "");
+}
+
+function responseFromQuestion(
+  question: AskQuestionEntry,
+  selectedOptionIds: string[],
+  writeInResponse: string,
+  skipped = false,
+): AskQuestionEntry {
+  return {
+    question: question.question,
+    options: question.options,
+    isMultiSelect: question.isMultiSelect,
+    selectedOptionIds,
+    ...(writeInResponse.trim()
+      ? { writeInResponse: writeInResponse.trim() }
+      : {}),
+    ...(skipped ? { skipped: true } : {}),
+  };
+}
+
+export function AskQuestionCard({
+  step,
+  askQuestionRequest,
+  fallbackStepIndex,
+  onAskQuestion,
+}: AskQuestionCardProps) {
+  const questions = useMemo(
+    () => askQuestionRequest.questions ?? [],
+    [askQuestionRequest.questions],
+  );
+  const [selectedByQuestion, setSelectedByQuestion] = useState<
+    Record<number, string[]>
+  >(() =>
+    Object.fromEntries(
+      questions.map((question, index) => [
+        index,
+        question.selectedOptionIds ?? [],
+      ]),
+    ),
+  );
+  const [writeIns, setWriteIns] = useState<Record<number, string>>(() =>
+    Object.fromEntries(
+      questions.map((question, index) => [
+        index,
+        question.writeInResponse ?? "",
+      ]),
+    ),
+  );
+  const [responded, setResponded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+  const trajectoryId =
+    step.metadata?.sourceTrajectoryStepInfo?.trajectoryId ?? "";
+  const stepIndex =
+    step.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? fallbackStepIndex;
+  const canRespond =
+    isWaiting && !responded && !!onAskQuestion && !!trajectoryId;
+
+  const hasAnswer =
+    questions.length > 0 &&
+    questions.every((_, index) => {
+      const selected = selectedByQuestion[index] ?? [];
+      const writeIn = writeIns[index]?.trim() ?? "";
+      return selected.length > 0 || writeIn.length > 0;
+    });
+
+  const setOptionSelected = (
+    questionIndex: number,
+    option: AskQuestionOption,
+    optionIndex: number,
+    isMultiSelect: boolean,
+  ) => {
+    const id = optionId(questionIndex, optionIndex, option);
+    setSelectedByQuestion((prev) => {
+      const existing = prev[questionIndex] ?? [];
+      if (!isMultiSelect) {
+        return { ...prev, [questionIndex]: [id] };
+      }
+      return {
+        ...prev,
+        [questionIndex]: existing.includes(id)
+          ? existing.filter((value) => value !== id)
+          : [...existing, id],
+      };
+    });
+  };
+
+  const buildResponses = (skipped = false): AskQuestionEntry[] =>
+    questions.map((question, index) =>
+      responseFromQuestion(
+        question,
+        skipped ? [] : (selectedByQuestion[index] ?? []),
+        skipped ? "" : (writeIns[index] ?? ""),
+        skipped,
+      ),
+    );
+
+  const handleSubmit = async (skipped = false) => {
+    if (!onAskQuestion || !canRespond || submitting) return;
+    setSubmitting(true);
+    setResponded(true);
+    try {
+      await onAskQuestion(trajectoryId, stepIndex, buildResponses(skipped));
+    } catch {
+      setResponded(false);
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className={`chat-block step-card ask-question-card ${responded ? "cmd-ok" : isWaiting ? "cmd-wait" : ""}`}
+    >
+      <div className="step-card-header ask-question-header">
+        <span className="step-card-icon">
+          <IconMessageCircle size={12} />
+        </span>
+        <span className="step-card-desc">Input requested</span>
+      </div>
+      <div className="ask-question-body">
+        {questions.map((question, questionIndex) => {
+          const options = question.options ?? [];
+          const selected = selectedByQuestion[questionIndex] ?? [];
+          const showWriteIn =
+            options.length === 0 ||
+            options.some((option, optionIndex) => {
+              const id = optionId(questionIndex, optionIndex, option);
+              return selected.includes(id) && isWriteInOption(option);
+            });
+
+          return (
+            <div className="ask-question" key={questionIndex}>
+              {question.question && (
+                <div className="ask-question-text">{question.question}</div>
+              )}
+              {options.length > 0 && (
+                <div className="ask-question-options">
+                  {options.map((option, optionIndex) => {
+                    const id = optionId(questionIndex, optionIndex, option);
+                    const active = selected.includes(id);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`ask-question-option ${active ? "active" : ""}`}
+                        disabled={!canRespond}
+                        onClick={() =>
+                          setOptionSelected(
+                            questionIndex,
+                            option,
+                            optionIndex,
+                            !!question.isMultiSelect,
+                          )
+                        }
+                      >
+                        <span className="ask-question-option-index">
+                          {optionIndex + 1}
+                        </span>
+                        <span className="ask-question-option-text">
+                          {option.text ?? id}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {showWriteIn && (
+                <textarea
+                  className="ask-question-write-in"
+                  aria-label="Custom answer"
+                  value={writeIns[questionIndex] ?? ""}
+                  disabled={!canRespond}
+                  onChange={(event) =>
+                    setWriteIns((prev) => ({
+                      ...prev,
+                      [questionIndex]: event.target.value,
+                    }))
+                  }
+                  rows={2}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {canRespond && (
+        <div className="step-card-actions ask-question-actions">
+          <button
+            className="approve-btn ask-question-btn skip"
+            type="button"
+            disabled={submitting}
+            onClick={() => void handleSubmit(true)}
+          >
+            Skip
+          </button>
+          <button
+            className="approve-btn ask-question-btn submit"
+            type="button"
+            disabled={!hasAnswer || submitting}
+            onClick={() => void handleSubmit(false)}
+          >
+            Submit
           </button>
         </div>
       )}
