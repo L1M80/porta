@@ -29,20 +29,27 @@ export interface LSInstance {
   lspPort: number;
   csrfToken: string;
   workspaceId?: string;
+  appDataDir?: string;
   /** Derived from discovery source */
   source: "daemon" | "process";
 }
 
 const DAEMON_DIRS = [
-  join(homedir(), ".gemini", "antigravity", "daemon"),
-  join(homedir(), ".gemini", "antigravity-ide", "daemon"),
+  {
+    dir: join(homedir(), ".gemini", "antigravity", "daemon"),
+    appDataDir: "antigravity",
+  },
+  {
+    dir: join(homedir(), ".gemini", "antigravity-ide", "daemon"),
+    appDataDir: "antigravity-ide",
+  },
 ];
 const SERVICE_PREFIX = "exa.language_server_pb.LanguageServerService";
 
 async function discoverFromDaemon(): Promise<LSInstance[]> {
   const instances: LSInstance[] = [];
 
-  for (const daemonDir of DAEMON_DIRS) {
+  for (const { dir: daemonDir, appDataDir } of DAEMON_DIRS) {
     try {
       const files = await readdir(daemonDir);
       const lsFiles = files.filter(
@@ -63,6 +70,7 @@ async function discoverFromDaemon(): Promise<LSInstance[]> {
             httpPort: data.httpPort ?? 0,
             lspPort: data.lspPort ?? 0,
             csrfToken: data.csrfToken,
+            appDataDir,
             source: "daemon",
           });
         } catch {
@@ -86,6 +94,7 @@ async function discoverFromProcess(): Promise<LSInstance[]> {
       pid: number;
       csrfToken: string;
       workspaceId?: string;
+      appDataDir?: string;
       httpsPort: number;
       httpPort: number;
       lspPort: number;
@@ -102,6 +111,7 @@ async function discoverFromProcess(): Promise<LSInstance[]> {
           lspPort: candidate.lspPort,
           csrfToken: candidate.csrfToken,
           workspaceId: candidate.workspaceId,
+          appDataDir: candidate.appDataDir,
           source: "process",
         });
       } else {
@@ -109,6 +119,7 @@ async function discoverFromProcess(): Promise<LSInstance[]> {
           pid: candidate.pid,
           csrfToken: candidate.csrfToken,
           workspaceId: candidate.workspaceId,
+          appDataDir: candidate.appDataDir,
           httpsPort: 0,
           httpPort: candidate.httpPort,
           lspPort: candidate.lspPort,
@@ -137,6 +148,7 @@ async function discoverFromProcess(): Promise<LSInstance[]> {
             lspPort: pending.lspPort,
             csrfToken: pending.csrfToken,
             workspaceId: pending.workspaceId,
+            appDataDir: pending.appDataDir,
             source: "process",
           });
         }),
@@ -365,6 +377,7 @@ export async function discoverInstances(): Promise<LSInstance[]> {
       existing.httpPort = existing.httpPort || processInstance.httpPort;
       existing.lspPort = existing.lspPort || processInstance.lspPort;
       existing.csrfToken = existing.csrfToken || processInstance.csrfToken;
+      existing.appDataDir = existing.appDataDir || processInstance.appDataDir;
       if (!existing.workspaceId && processInstance.workspaceId) {
         existing.workspaceId = processInstance.workspaceId;
       }

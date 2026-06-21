@@ -3,6 +3,7 @@ import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  conversationDirsForAppDataDirs,
   extractConversationWorkspaces,
   getMetadata,
   getPrimaryWorkspaceUri,
@@ -96,6 +97,20 @@ describe("conversation workspace metadata helpers", () => {
 });
 
 describe("scanDiskConversations", () => {
+  it("selects known Antigravity app-data conversation directories", () => {
+    const dirs = conversationDirsForAppDataDirs([
+      "antigravity-ide",
+      "unknown",
+      undefined,
+      "antigravity-ide",
+    ]);
+
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0].replace(/\\/g, "/")).toMatch(
+      /\/\.gemini\/antigravity-ide\/conversations$/,
+    );
+  });
+
   it("scans .pb and .db conversations while ignoring SQLite sidecar files", async () => {
     const dir = await mkdtemp(join(tmpdir(), "porta-conversations-"));
     try {
@@ -137,6 +152,32 @@ describe("scanDiskConversations", () => {
       ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("scans multiple app-data directories and deduplicates by newest mtime", async () => {
+    const oldDir = await mkdtemp(join(tmpdir(), "porta-conversations-old-"));
+    const newDir = await mkdtemp(join(tmpdir(), "porta-conversations-new-"));
+    try {
+      await writeFile(join(oldDir, "same.pb"), "");
+      await writeFile(join(newDir, "same.db"), "");
+      await writeFile(join(newDir, "new-only.db"), "");
+
+      const oldTime = new Date("2026-06-01T00:00:00.000Z");
+      const newTime = new Date("2026-06-03T00:00:00.000Z");
+      await utimes(join(oldDir, "same.pb"), oldTime, oldTime);
+      await utimes(join(newDir, "same.db"), newTime, newTime);
+      await utimes(join(newDir, "new-only.db"), newTime, newTime);
+
+      const results = await scanDiskConversations([oldDir, newDir]);
+
+      expect(results.sort((a, b) => a.id.localeCompare(b.id))).toEqual([
+        { id: "new-only", mtime: newTime.toISOString() },
+        { id: "same", mtime: newTime.toISOString() },
+      ]);
+    } finally {
+      await rm(oldDir, { recursive: true, force: true });
+      await rm(newDir, { recursive: true, force: true });
     }
   });
 });

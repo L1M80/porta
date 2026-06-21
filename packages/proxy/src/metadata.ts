@@ -16,12 +16,13 @@ export interface ConversationWorkspaceMetadata {
   branchName?: string;
 }
 
-const CONVERSATIONS_DIR = join(
-  homedir(),
-  ".gemini",
-  "antigravity",
-  "conversations",
-);
+const KNOWN_APP_DATA_DIRS = ["antigravity", "antigravity-ide"] as const;
+
+function conversationDirForAppDataDir(appDataDir: string): string {
+  return join(homedir(), ".gemini", appDataDir, "conversations");
+}
+
+const CONVERSATIONS_DIRS = KNOWN_APP_DATA_DIRS.map(conversationDirForAppDataDir);
 
 const CONVERSATION_EXTENSIONS = [".pb", ".db"] as const;
 
@@ -51,31 +52,53 @@ export async function getMetadata(
 
 /** Scan disk for conversation files not loaded in memory */
 export async function scanDiskConversations(
-  conversationsDir = CONVERSATIONS_DIR,
+  conversationsDirs: string | string[] = CONVERSATIONS_DIRS,
 ): Promise<
   { id: string; mtime: string }[]
 > {
-  try {
-    const files = await readdir(conversationsDir);
-    const results = new Map<string, { id: string; mtime: string }>();
-    for (const file of files) {
-      const id = conversationIdFromFilename(file);
-      if (!id) continue;
-      try {
-        const s = await stat(join(conversationsDir, file));
-        const mtime = s.mtime.toISOString();
-        const existing = results.get(id);
-        if (!existing || existing.mtime < mtime) {
-          results.set(id, { id, mtime });
+  const dirs = Array.isArray(conversationsDirs)
+    ? conversationsDirs
+    : [conversationsDirs];
+  const results = new Map<string, { id: string; mtime: string }>();
+
+  for (const conversationsDir of dirs) {
+    try {
+      const files = await readdir(conversationsDir);
+      for (const file of files) {
+        const id = conversationIdFromFilename(file);
+        if (!id) continue;
+        try {
+          const s = await stat(join(conversationsDir, file));
+          const mtime = s.mtime.toISOString();
+          const existing = results.get(id);
+          if (!existing || existing.mtime < mtime) {
+            results.set(id, { id, mtime });
+          }
+        } catch {
+          results.set(id, { id, mtime: new Date().toISOString() });
         }
-      } catch {
-        results.set(id, { id, mtime: new Date().toISOString() });
       }
+    } catch {
+      // Conversation dir missing or unreadable
     }
-    return [...results.values()];
-  } catch {
-    return [];
   }
+
+  return [...results.values()];
+}
+
+export function conversationDirsForAppDataDirs(
+  appDataDirs: Iterable<string | undefined>,
+): string[] {
+  const known = new Set<string>(KNOWN_APP_DATA_DIRS);
+  const dirs = new Set<string>();
+
+  for (const appDataDir of appDataDirs) {
+    if (appDataDir && known.has(appDataDir)) {
+      dirs.add(conversationDirForAppDataDir(appDataDir));
+    }
+  }
+
+  return [...dirs];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
