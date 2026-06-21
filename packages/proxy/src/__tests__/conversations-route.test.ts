@@ -8,7 +8,7 @@ const mockRpcCall = vi.fn<
   (method: string, body: unknown, inst: LSInstance) => Promise<unknown>
 >();
 const mockScanDiskConversations = vi.fn<
-  () => Promise<{ id: string; mtime: string }[]>
+  (dirs?: string | string[]) => Promise<{ id: string; mtime: string }[]>
 >();
 const mockRpcForConversation = vi.fn();
 const mockGetStepCount = vi.fn();
@@ -136,6 +136,20 @@ describe("GET /api/conversations", () => {
     expect(body.trajectorySummaries["c-meta"].workspaces).toEqual([
       { workspaceFolderAbsoluteUri: "file:///home/user/project" },
     ]);
+  });
+
+  it("scans the conversation directory for the running Antigravity app data dir", async () => {
+    const ideLS = makeInstance({ pid: 33, appDataDir: "antigravity-ide" });
+    mockGetInstances.mockResolvedValue([ideLS]);
+    mockRpcCall.mockResolvedValue({ trajectorySummaries: {} });
+
+    const res = await app().request("/api/conversations");
+
+    expect(res.status).toBe(200);
+    const [[dirs]] = mockScanDiskConversations.mock.calls;
+    expect(Array.isArray(dirs) ? dirs[0].replace(/\\/g, "/") : "").toMatch(
+      /\/\.gemini\/antigravity-ide\/conversations$/,
+    );
   });
 
   it("learns affinity before filtering inactive scoped workspace summaries", async () => {
