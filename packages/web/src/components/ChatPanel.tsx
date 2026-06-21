@@ -20,11 +20,12 @@ import {
 import { renderMarkdown } from "../utils/markdown";
 import { MarkdownContent } from "./MarkdownContent";
 import {
+  AskQuestionCard,
   CommandCard,
   CodeActionCard,
   FilePermissionCard,
 } from "./StepCards";
-import { getFilePermissionRequest } from "../utils/stepCards";
+import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
 import {
   IconCopy,
   IconCheck,
@@ -39,7 +40,7 @@ import {
   IconAlertTriangle,
   IconChevron,
 } from "./Icons";
-import type { ChatMessage } from "../types";
+import type { AskQuestionEntry, ChatMessage } from "../types";
 
 interface Props {
   cascadeId: string;
@@ -55,6 +56,12 @@ interface Props {
     trajectoryId: string,
     stepIndex: number,
     approved: boolean,
+  ) => Promise<void>;
+  onAskQuestion?: (
+    trajectoryId: string,
+    stepIndex: number,
+    responses: AskQuestionEntry[],
+    cancelled?: boolean,
   ) => Promise<void>;
   onConfirmOptimistic?: (ids: string[]) => void;
   optimisticMessages?: ChatMessage[];
@@ -233,6 +240,7 @@ function SystemMessage({
   msg,
   onFilePermission,
   onCommandAction,
+  onAskQuestion,
 }: {
   msg: ChatMessage;
   onFilePermission: (
@@ -246,6 +254,12 @@ function SystemMessage({
     trajectoryId: string,
     stepIndex: number,
     approved: boolean,
+  ) => Promise<void>;
+  onAskQuestion?: (
+    trajectoryId: string,
+    stepIndex: number,
+    responses: AskQuestionEntry[],
+    cancelled?: boolean,
   ) => Promise<void>;
 }) {
   const renderedContent = useMemo(
@@ -264,6 +278,21 @@ function SystemMessage({
               step={msg.step}
               permissionRequest={fpr}
               onFilePermission={onFilePermission}
+            />
+          </div>
+        );
+      }
+    }
+    if (msg.type === "CORTEX_STEP_TYPE_ASK_QUESTION") {
+      const askQuestion = getAskQuestionRequest(msg.step);
+      if (askQuestion) {
+        return (
+          <div className="message system">
+            <AskQuestionCard
+              step={msg.step}
+              askQuestionRequest={askQuestion}
+              fallbackStepIndex={msg.stepIndex}
+              onAskQuestion={onAskQuestion}
             />
           </div>
         );
@@ -508,6 +537,7 @@ export function ChatPanel({
   onRevert,
   onFilePermission,
   onCommandAction,
+  onAskQuestion,
   onConfirmOptimistic,
   optimisticMessages = [],
   refreshKey = 0,
@@ -817,6 +847,7 @@ export function ChatPanel({
                   msg={msg}
                   onFilePermission={onFilePermission}
                   onCommandAction={onCommandAction}
+                  onAskQuestion={onAskQuestion}
                 />
               </Fragment>
             );

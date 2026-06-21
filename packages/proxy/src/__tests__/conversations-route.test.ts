@@ -409,3 +409,62 @@ describe("GET /api/conversations/:id/steps", () => {
     expect(body.steps).toHaveLength(20);
   });
 });
+
+describe("POST /api/conversations/:id/ask-question", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+    mockRpcForConversation.mockResolvedValue({ ok: true });
+  });
+
+  it("forwards ask-question responses as a CascadeUserInteraction", async () => {
+    const responses = [
+      {
+        question: "Pick one",
+        selectedOptionIds: ["b"],
+      },
+    ];
+
+    const res = await app().request("/api/conversations/c-1/ask-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trajectoryId: "traj-1",
+        stepIndex: 9,
+        responses,
+      }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "HandleCascadeUserInteraction",
+      "c-1",
+      {
+        cascadeId: "c-1",
+        interaction: {
+          trajectoryId: "traj-1",
+          stepIndex: 9,
+          askQuestion: {
+            responses,
+            cancelled: false,
+          },
+        },
+      },
+    );
+  });
+
+  it("rejects requests without trajectory coordinates", async () => {
+    const res = await app().request("/api/conversations/c-1/ask-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ responses: [] }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockRpcForConversation).not.toHaveBeenCalled();
+  });
+});

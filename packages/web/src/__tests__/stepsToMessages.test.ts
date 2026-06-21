@@ -201,6 +201,32 @@ describe("stepsToMessages", () => {
     expect(msgs[0].type).toBe("CORTEX_STEP_TYPE_CODE_ACTION");
   });
 
+  it("converts ask question to a system message with step data", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_ASK_QUESTION",
+      askQuestion: {
+        questions: [
+          {
+            question: "Pick one",
+            options: [
+              { id: "a", text: "Alpha" },
+              { id: "b", text: "Beta" },
+            ],
+          },
+        ],
+      },
+    };
+
+    const msgs = stepsToMessages([step]);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].role).toBe("system");
+    expect(msgs[0].type).toBe("CORTEX_STEP_TYPE_ASK_QUESTION");
+    expect(msgs[0].step?.askQuestion?.questions?.[0]?.question).toBe(
+      "Pick one",
+    );
+  });
+
   // ── Send command input (terminate) ──
 
   it("shows termination message", () => {

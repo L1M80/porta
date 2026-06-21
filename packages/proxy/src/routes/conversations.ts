@@ -710,6 +710,47 @@ export function registerConversationRoutes(app: Hono): void {
     }
   });
 
+  // ── Ask Question (Antigravity choice prompts) ──
+
+  app.post("/api/conversations/:id/ask-question", async (c) => {
+    const id = c.req.param("id");
+    try {
+      const body = await c.req.json();
+      const { trajectoryId, stepIndex, responses, cancelled } = body;
+
+      if (!trajectoryId || stepIndex === undefined) {
+        return c.json(
+          {
+            error: "Missing required fields: trajectoryId, stepIndex",
+          },
+          400,
+        );
+      }
+
+      const data = await rpcForConversation(
+        "HandleCascadeUserInteraction",
+        id,
+        {
+          cascadeId: id,
+          interaction: {
+            trajectoryId,
+            stepIndex: Number(stepIndex),
+            askQuestion: {
+              responses: Array.isArray(responses) ? responses : [],
+              cancelled: !!cancelled,
+            },
+          },
+        },
+      );
+
+      conversationSignals.emit("activate", id);
+
+      return c.json(data);
+    } catch (err) {
+      return handleRPCError(c, err);
+    }
+  });
+
   app.post("/api/conversations/:id/revert", async (c) => {
     const id = c.req.param("id");
     try {

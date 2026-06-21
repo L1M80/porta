@@ -22,7 +22,7 @@ import { useChatActions } from "./hooks/useChatActions";
 import { useClientSettings } from "./hooks/useClientSettings";
 import { api } from "./api/client";
 import { isUnconfirmedOptimisticMessage } from "./utils/optimisticMessages";
-import type { HealthResponse, MediaAttachment } from "./types";
+import type { AskQuestionEntry, HealthResponse, MediaAttachment } from "./types";
 import type { PlannerType } from "./components/ChatInput";
 
 export default function App() {
@@ -192,6 +192,33 @@ function ChatView() {
     [activeId, refresh, triggerSoftRefresh],
   );
 
+  // ── Ask question response (Antigravity choice prompts) ──
+  const handleAskQuestion = useCallback(
+    async (
+      trajectoryId: string,
+      stepIndex: number,
+      responses: AskQuestionEntry[],
+      cancelled = false,
+    ) => {
+      if (!activeId) return;
+      try {
+        await api.askQuestion(
+          activeId,
+          trajectoryId,
+          stepIndex,
+          responses,
+          cancelled,
+        );
+        triggerSoftRefresh();
+        refresh();
+      } catch (err) {
+        console.error("Failed to respond to question:", err);
+        throw err;
+      }
+    },
+    [activeId, refresh, triggerSoftRefresh],
+  );
+
   // ── Navigate helpers ──
   const handleNew = useCallback(() => {
     navigate(`/${projectSlug ?? "unknown"}`);
@@ -287,6 +314,7 @@ function ChatView() {
             onRevert={handleRevert}
             onFilePermission={handleFilePermission}
             onCommandAction={handleCommandAction}
+            onAskQuestion={handleAskQuestion}
             onConfirmOptimistic={confirmOptimisticMessages}
             optimisticMessages={optimisticMessages}
             refreshKey={stepsRefreshKey}
