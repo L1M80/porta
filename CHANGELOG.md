@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-21
+
+### Added
+
+- `pnpm dev:cloud` now supports `PORTA_CLOUDFLARED_CONFIG`, and `.env`
+  parsing allows inline comments while preserving quoted `#` characters. (#93)
+
+### Fixed
+
+- **Antigravity ask-question prompts are now visible and actionable in the web
+  UI** with selectable options, Skip/Submit actions, and write-in responses
+  for custom answers. (#76, #96)
+- **Conversation discovery now scans the active Antigravity app-data tree**
+  reported by daemon/process discovery instead of always using the legacy
+  directory, reducing disk-only conversations and avoiding repeated warm-up
+  retries for conversations no running Language Server can load. (#94)
+
+### Security
+
+- Updated Hono to 4.12.25 for upstream security fixes. (#89)
+- Updated Undici to 7.28.0 and Vite to 8.0.16, including upstream security
+  fixes and dev tooling updates. (#90)
+
 ## [0.10.0] - 2026-06-17
 
 ### Added
@@ -211,7 +234,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/L1M80/porta/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/L1M80/porta/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/L1M80/porta/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/L1M80/porta/compare/v0.7.0...v0.8.0
