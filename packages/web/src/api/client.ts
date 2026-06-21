@@ -132,6 +132,23 @@ export const api = {
       }),
     }),
 
+  askQuestion: (
+    cascadeId: string,
+    trajectoryId: string,
+    stepIndex: number,
+    responses: import("../types").AskQuestionEntry[],
+    cancelled = false,
+  ) =>
+    request(`/api/conversations/${cascadeId}/ask-question`, {
+      method: "POST",
+      body: JSON.stringify({
+        trajectoryId,
+        stepIndex,
+        responses,
+        cancelled,
+      }),
+    }),
+
   revert: (cascadeId: string, stepIndex: number, model?: string) =>
     request(`/api/conversations/${cascadeId}/revert`, {
       method: "POST",

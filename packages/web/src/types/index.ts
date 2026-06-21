@@ -58,6 +58,42 @@ export interface FilePermissionRequest {
   isDirectory?: boolean;
 }
 
+// ── Ask Question ──
+
+export interface AskQuestionOption {
+  id?: string;
+  text?: string;
+}
+
+export interface AskQuestionEntry {
+  question?: string;
+  options?: AskQuestionOption[];
+  isMultiSelect?: boolean;
+  selectedOptionIds?: string[];
+  writeInResponse?: string;
+  skipped?: boolean;
+}
+
+export interface AskQuestionRequest {
+  questions?: AskQuestionEntry[];
+}
+
+export interface AskQuestionInteraction {
+  responses?: AskQuestionEntry[];
+  cancelled?: boolean;
+}
+
+export interface RequestedInteractionData {
+  askQuestion?: AskQuestionRequest;
+}
+
+export interface CompletedInteractionData {
+  request?: RequestedInteractionData;
+  response?: {
+    askQuestion?: AskQuestionInteraction;
+  };
+}
+
 // ── Trajectory Steps ──
 
 export interface StepsResponse {
@@ -88,6 +124,9 @@ export interface TrajectoryStep {
   viewCodeItem?: ViewCodeItemData;
   listDirectory?: ListDirectoryData;
   find?: FindData;
+  askQuestion?: AskQuestionRequest;
+  requestedInteraction?: RequestedInteractionData;
+  completedInteractions?: CompletedInteractionData[];
   /** File permission request can appear on any tool step */
   filePermissionRequest?: FilePermissionRequest;
 }
