@@ -32,6 +32,34 @@ function unquote(value) {
   return value;
 }
 
+function stripInlineComment(value) {
+  let quote = null;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (char === "\\" && quote === '"') {
+      index += 1;
+      continue;
+    }
+
+    if ((char === '"' || char === "'") && (!quote || quote === char)) {
+      quote = quote ? null : char;
+      continue;
+    }
+
+    if (
+      char === "#" &&
+      !quote &&
+      (index === 0 || /\s/.test(value[index - 1]))
+    ) {
+      return value.slice(0, index).trimEnd();
+    }
+  }
+
+  return value;
+}
+
 export function loadEnvFile(filePath = ".env") {
   const absPath = path.resolve(filePath);
   if (!existsSync(absPath)) return;
@@ -45,7 +73,7 @@ export function loadEnvFile(filePath = ".env") {
     if (separator < 1) continue;
 
     const key = line.slice(0, separator).trim();
-    const value = unquote(line.slice(separator + 1).trim());
+    const value = unquote(stripInlineComment(line.slice(separator + 1).trim()));
 
     if (process.env[key] === undefined) {
       process.env[key] = value;
