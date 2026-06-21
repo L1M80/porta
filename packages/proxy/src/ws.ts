@@ -4,7 +4,7 @@
  * Two states:
  *   IDLE   — No active agent run. A low-frequency heartbeat checks for
  *            externally-started or externally-completed updates.
- *   ACTIVE — Agent is running. 50ms serial polling for near-streaming UX.
+ *   ACTIVE — Agent is running. 200ms serial polling for near-streaming UX.
  *
  * Activation triggers (IDLE → ACTIVE):
  *   - conversationSignals "activate" (REST: SendMessage / StartCascade / Revert)
@@ -33,7 +33,7 @@ import {
 import { conversationSignals } from "./signals.js";
 
 /** Active polling interval (ms). */
-const ACTIVE_INTERVAL = 50;
+const ACTIVE_INTERVAL = 200;
 /** Idle polling interval (ms) for externally-originated updates. */
 const HEARTBEAT_INTERVAL = 5000;
 /** Transport keepalive interval (ms) for detecting dead idle sockets. */

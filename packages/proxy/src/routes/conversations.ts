@@ -16,6 +16,7 @@ import {
 } from "../routing.js";
 import {
   extractConversationWorkspaces,
+  conversationDirsForAppDataDirs,
   getMetadata,
   getPrimaryWorkspaceUri,
   scanDiskConversations,
@@ -148,8 +149,6 @@ function warmUpDiskConversations(
               // This LS doesn't have it — try next
             }
           }
-          // No LS could load it — expire immediately so next poll retries
-          warmedAt.delete(cascadeId);
           failed++;
         }),
       );
@@ -244,8 +243,14 @@ export function registerConversationRoutes(app: Hono): void {
         // originally created it.
       }
 
-      // Also scan disk for all .pb files
-      const diskIds = await scanDiskConversations();
+      // Also scan disk for conversations in the app-data tree used by the
+      // running LS instances.
+      const diskConversationDirs = conversationDirsForAppDataDirs(
+        instances.map((inst) => inst.appDataDir),
+      );
+      const diskIds = await scanDiskConversations(
+        diskConversationDirs.length > 0 ? diskConversationDirs : undefined,
+      );
 
       // Merge: disk-only sessions get minimal placeholder metadata.
       // Actual workspace info will be resolved by the background warm-up below.

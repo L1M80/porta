@@ -57,7 +57,7 @@ describe("linux container detection", () => {
 describe("platform parsing helpers", () => {
   it("parses language server processes without hard-coding architecture", () => {
     const output = `
-  123 /Applications/Antigravity/language_server_macos_arm64 --csrf_token abc --workspace_id file_C:_Users_test_project --extension_server_port 1919 --lsp_port 2020
+  123 /Applications/Antigravity/language_server_macos_arm64 --csrf_token abc --workspace_id file_C:_Users_test_project --app_data_dir antigravity-ide --extension_server_port 1919 --lsp_port 2020
   456 /opt/antigravity/language_server_linux_x64 --csrf_token def --server_port 3030
   457 "C:\\Program Files\\Antigravity\\language_server_windows_x64.exe" --csrf_token "ghi" --server_port 4040 --workspace_id "file_C:_Users_test_project"
   789 /usr/bin/something_else --csrf_token nope
@@ -69,6 +69,7 @@ describe("platform parsing helpers", () => {
         pid: 123,
         csrfToken: "abc",
         workspaceId: "file_C:_Users_test_project",
+        appDataDir: "antigravity-ide",
         httpsPort: 0,
         httpPort: 1919,
         lspPort: 2020,
