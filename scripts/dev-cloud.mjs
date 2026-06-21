@@ -15,6 +15,13 @@ if (!tunnelName) {
   console.error("PORTA_TUNNEL_NAME is required in .env or the environment");
   process.exit(1);
 }
+const cloudflaredConfig = process.env.PORTA_CLOUDFLARED_CONFIG;
+const cloudflaredArgs = [
+  ...(cloudflaredConfig ? ["--config", cloudflaredConfig] : []),
+  "tunnel",
+  "run",
+  tunnelName,
+];
 
 const logsDir = ensureLogsDir();
 const runners = [
@@ -27,7 +34,7 @@ const runners = [
   spawnLoggedProcess(
     "tunnel",
     "cloudflared",
-    ["tunnel", "run", tunnelName],
+    cloudflaredArgs,
     path.join(logsDir, "tunnel.log"),
   ),
 ];
