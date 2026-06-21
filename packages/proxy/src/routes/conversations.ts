@@ -16,6 +16,7 @@ import {
 } from "../routing.js";
 import {
   extractConversationWorkspaces,
+  conversationDirsForAppDataDirs,
   getMetadata,
   getPrimaryWorkspaceUri,
   scanDiskConversations,
@@ -148,8 +149,6 @@ function warmUpDiskConversations(
               // This LS doesn't have it — try next
             }
           }
-          // No LS could load it — expire immediately so next poll retries
-          warmedAt.delete(cascadeId);
           failed++;
         }),
       );
@@ -244,8 +243,14 @@ export function registerConversationRoutes(app: Hono): void {
         // originally created it.
       }
 
-      // Also scan disk for all .pb files
-      const diskIds = await scanDiskConversations();
+      // Also scan disk for conversations in the app-data tree used by the
+      // running LS instances.
+      const diskConversationDirs = conversationDirsForAppDataDirs(
+        instances.map((inst) => inst.appDataDir),
+      );
+      const diskIds = await scanDiskConversations(
+        diskConversationDirs.length > 0 ? diskConversationDirs : undefined,
+      );
 
       // Merge: disk-only sessions get minimal placeholder metadata.
       // Actual workspace info will be resolved by the background warm-up below.
@@ -697,6 +702,47 @@ export function registerConversationRoutes(app: Hono): void {
       );
 
       // Command approval/rejection unblocks the agent — wake WS polling
+      conversationSignals.emit("activate", id);
+
+      return c.json(data);
+    } catch (err) {
+      return handleRPCError(c, err);
+    }
+  });
+
+  // ── Ask Question (Antigravity choice prompts) ──
+
+  app.post("/api/conversations/:id/ask-question", async (c) => {
+    const id = c.req.param("id");
+    try {
+      const body = await c.req.json();
+      const { trajectoryId, stepIndex, responses, cancelled } = body;
+
+      if (!trajectoryId || stepIndex === undefined) {
+        return c.json(
+          {
+            error: "Missing required fields: trajectoryId, stepIndex",
+          },
+          400,
+        );
+      }
+
+      const data = await rpcForConversation(
+        "HandleCascadeUserInteraction",
+        id,
+        {
+          cascadeId: id,
+          interaction: {
+            trajectoryId,
+            stepIndex: Number(stepIndex),
+            askQuestion: {
+              responses: Array.isArray(responses) ? responses : [],
+              cancelled: !!cancelled,
+            },
+          },
+        },
+      );
+
       conversationSignals.emit("activate", id);
 
       return c.json(data);

@@ -70,11 +70,13 @@ export function parseCommandCandidate(
 
   const csrfToken = parseArgValue(args, "--csrf_token");
   if (!csrfToken) return undefined;
+  const appDataDir = parseArgValue(args, "--app_data_dir");
 
   return {
     pid,
     csrfToken,
     workspaceId: parseArgValue(args, "--workspace_id"),
+    ...(appDataDir ? { appDataDir } : {}),
     httpsPort: parsePort(args, "--server_port"),
     httpPort: parsePort(args, "--extension_server_port"),
     lspPort: parsePort(args, "--lsp_port"),

@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
-import { CommandCard } from "../components/StepCards";
-import type { TrajectoryStep } from "../types";
+import { AskQuestionCard, CommandCard } from "../components/StepCards";
+import type { AskQuestionRequest, TrajectoryStep } from "../types";
 
 /** Helper: build a WAITING run-command step */
 function waitingStep(overrides: Partial<TrajectoryStep> = {}): TrajectoryStep {
@@ -111,5 +111,78 @@ describe("CommandCard", () => {
     render(<CommandCard step={step} />);
 
     expect(screen.getByText("npm test")).toBeInTheDocument();
+  });
+});
+
+function askQuestionStep(): TrajectoryStep {
+  return {
+    type: "CORTEX_STEP_TYPE_ASK_QUESTION",
+    status: "CORTEX_STEP_STATUS_WAITING",
+    metadata: {
+      sourceTrajectoryStepInfo: {
+        trajectoryId: "traj-1",
+        stepIndex: 9,
+      },
+    },
+  };
+}
+
+function askQuestionRequest(): AskQuestionRequest {
+  return {
+    questions: [
+      {
+        question: "Pick one",
+        options: [
+          { id: "a", text: "Alpha" },
+          { id: "b", text: "Beta" },
+        ],
+      },
+    ],
+  };
+}
+
+describe("AskQuestionCard", () => {
+  it("submits the selected option", async () => {
+    const onAskQuestion = vi.fn().mockResolvedValue(undefined);
+    render(
+      <AskQuestionCard
+        step={askQuestionStep()}
+        askQuestionRequest={askQuestionRequest()}
+        fallbackStepIndex={3}
+        onAskQuestion={onAskQuestion}
+      />,
+    );
+
+    await userEvent.click(screen.getByText("Beta"));
+    await userEvent.click(screen.getByText("Submit"));
+
+    expect(onAskQuestion).toHaveBeenCalledWith("traj-1", 9, [
+      expect.objectContaining({
+        question: "Pick one",
+        selectedOptionIds: ["b"],
+      }),
+    ]);
+  });
+
+  it("marks questions skipped when skipping", async () => {
+    const onAskQuestion = vi.fn().mockResolvedValue(undefined);
+    render(
+      <AskQuestionCard
+        step={askQuestionStep()}
+        askQuestionRequest={askQuestionRequest()}
+        fallbackStepIndex={3}
+        onAskQuestion={onAskQuestion}
+      />,
+    );
+
+    await userEvent.click(screen.getByText("Skip"));
+
+    expect(onAskQuestion).toHaveBeenCalledWith("traj-1", 9, [
+      expect.objectContaining({
+        question: "Pick one",
+        selectedOptionIds: [],
+        skipped: true,
+      }),
+    ]);
   });
 });

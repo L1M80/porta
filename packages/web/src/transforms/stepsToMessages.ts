@@ -1,5 +1,5 @@
 import type { ChatMessage, TrajectoryStep } from "../types";
-import { getFilePermissionRequest } from "../utils/stepCards";
+import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
 
 function textFromItems(items?: { text?: string }[]): string {
   if (!items) return "";
@@ -25,6 +25,22 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
         content: "",
         stepIndex: i,
         type: "CORTEX_STEP_TYPE_FILE_PERMISSION",
+        step,
+      });
+      continue;
+    }
+
+    const askQuestion = getAskQuestionRequest(step);
+    if (
+      askQuestion &&
+      (type === "CORTEX_STEP_TYPE_ASK_QUESTION" ||
+        step.requestedInteraction?.askQuestion)
+    ) {
+      messages.push({
+        role: "system",
+        content: "",
+        stepIndex: i,
+        type: "CORTEX_STEP_TYPE_ASK_QUESTION",
         step,
       });
       continue;
