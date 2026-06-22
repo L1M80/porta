@@ -251,11 +251,20 @@ export function registerConversationRoutes(app: Hono): void {
       const diskIds = await scanDiskConversations(
         diskConversationDirs.length > 0 ? diskConversationDirs : undefined,
       );
+      // Sort diskIds by mtime descending so we prioritize warming up/displaying the most recent ones
+      diskIds.sort((a, b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime());
 
       // Merge: disk-only sessions get minimal placeholder metadata.
       // Actual workspace info will be resolved by the background warm-up below.
+      // We limit the total number of conversations returned to prevent UI lag
+      // and protect the LS from infinite warm-up eviction loops.
       const diskOnlyIds: string[] = [];
+      const MAX_TOTAL_CONVERSATIONS = 100;
+
       for (const diskId of diskIds) {
+        if (Object.keys(merged).length >= MAX_TOTAL_CONVERSATIONS) {
+          break;
+        }
         if (!merged[diskId.id]) {
           let injectedWorkspaces: { workspaceFolderAbsoluteUri: string }[] = [];
           const wsId = conversationAffinity.get(diskId.id);
