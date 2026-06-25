@@ -45,6 +45,9 @@ function relativeTime(iso: string): string {
 }
 
 function extractWorkspaceName(conv: ConversationEntry): string {
+  if (conv.summary.projectName) {
+    return conv.summary.projectName;
+  }
   const name = workspaceNameFromMetadata(conv.summary.workspaces?.[0], {
     collapseAntigravityPlayground: true,
   });
