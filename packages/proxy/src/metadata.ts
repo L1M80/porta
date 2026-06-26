@@ -16,7 +16,7 @@ export interface ConversationWorkspaceMetadata {
   branchName?: string;
 }
 
-const KNOWN_APP_DATA_DIRS = ["antigravity", "antigravity-ide"] as const;
+const KNOWN_APP_DATA_DIRS = ["antigravity", "antigravity-ide", "antigravity-cli"] as const;
 
 function conversationDirForAppDataDir(appDataDir: string): string {
   return join(homedir(), ".gemini", appDataDir, "conversations");

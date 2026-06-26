@@ -44,6 +44,10 @@ const DAEMON_DIRS = [
     dir: join(homedir(), ".gemini", "antigravity-ide", "daemon"),
     appDataDir: "antigravity-ide",
   },
+  {
+    dir: join(homedir(), ".gemini", "antigravity-cli", "daemon"),
+    appDataDir: "antigravity-cli",
+  },
 ];
 const SERVICE_PREFIX = "exa.language_server_pb.LanguageServerService";
 
