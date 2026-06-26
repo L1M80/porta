@@ -21,6 +21,7 @@ import {
   rememberSuccessfulTransport,
   type TransportProtocol,
 } from "./transport-hints.js";
+import { ensureStandaloneCore } from "./core-manager.js";
 
 export interface LSInstance {
   pid: number;
@@ -405,7 +406,12 @@ export class LSDiscovery {
   }
 
   protected async discover(): Promise<LSInstance[]> {
-    return discoverInstances();
+    let instances = await discoverInstances();
+    if (instances.length === 0) {
+      await ensureStandaloneCore();
+      instances = await discoverInstances();
+    }
+    return instances;
   }
 
   async getInstances(forceRefresh = false): Promise<LSInstance[]> {
