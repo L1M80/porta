@@ -42,6 +42,7 @@ export async function ensureStandaloneCore(): Promise<void> {
         "--https_server_port", "0",
         "--csrf_token", csrfToken,
         "--app_data_dir", "antigravity",
+        "--config_dir", "porta_config",
         "--api_server_url", "https://generativelanguage.googleapis.com",
         "--cloud_code_endpoint", "https://daily-cloudcode-pa.googleapis.com",
         "--enable_sidecars",
