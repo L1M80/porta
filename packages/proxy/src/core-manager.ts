@@ -41,7 +41,7 @@ export async function ensureStandaloneCore(): Promise<void> {
         "--override_user_agent_name", "antigravity",
         "--https_server_port", "0",
         "--csrf_token", csrfToken,
-        "--app_data_dir", "antigravity",
+        "--app_data_dir", "antigravity-cli",
         "--api_server_url", "https://generativelanguage.googleapis.com",
         "--cloud_code_endpoint", "https://daily-cloudcode-pa.googleapis.com",
         "--enable_sidecars",
