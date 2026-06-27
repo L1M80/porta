@@ -251,20 +251,19 @@ export function registerConversationRoutes(app: Hono): void {
       const diskIds = await scanDiskConversations(
         diskConversationDirs.length > 0 ? diskConversationDirs : undefined,
       );
-      // Sort diskIds by mtime descending so we prioritize warming up/displaying the most recent ones
-      diskIds.sort((a, b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime());
 
-      // Merge: disk-only sessions get minimal placeholder metadata.
-      // Actual workspace info will be resolved by the background warm-up below.
-      // We limit the total number of conversations returned to prevent UI lag
-      // and protect the LS from infinite warm-up eviction loops.
-      const diskOnlyIds: string[] = [];
-      const MAX_TOTAL_CONVERSATIONS = 100;
+      // Create a unified list of candidates combining LS-returned and disk-only ones
+      const candidates: { id: string; lastModifiedTime: string; summary: Record<string, unknown> }[] = [];
+
+      for (const [id, summary] of Object.entries(merged)) {
+        candidates.push({
+          id,
+          lastModifiedTime: typeof summary.lastModifiedTime === "string" ? summary.lastModifiedTime : "",
+          summary,
+        });
+      }
 
       for (const diskId of diskIds) {
-        if (Object.keys(merged).length >= MAX_TOTAL_CONVERSATIONS) {
-          break;
-        }
         if (!merged[diskId.id]) {
           let injectedWorkspaces: { workspaceFolderAbsoluteUri: string }[] = [];
           const wsId = conversationAffinity.get(diskId.id);
@@ -273,21 +272,46 @@ export function registerConversationRoutes(app: Hono): void {
             injectedWorkspaces = [{ workspaceFolderAbsoluteUri: uri }];
           }
 
-          // Always queue for warm-up, even with cached affinity.
-          // Affinity may be stale (LS restarted, conversation fell out of
-          // memory) — warm-up ensures the LS re-loads it from disk.
-          diskOnlyIds.push(diskId.id);
-
-          merged[diskId.id] = {
-            summary: diskId.id.slice(0, 8) + "…",
-            stepCount: 0,
-            status: "CASCADE_RUN_STATUS_UNLOADED",
+          candidates.push({
+            id: diskId.id,
             lastModifiedTime: diskId.mtime,
-            createdTime: diskId.mtime,
-            trajectoryId: "",
-            workspaces: injectedWorkspaces,
-            _diskOnly: true,
-          };
+            summary: {
+              summary: diskId.id.slice(0, 8) + "…",
+              stepCount: 0,
+              status: "CASCADE_RUN_STATUS_UNLOADED",
+              lastModifiedTime: diskId.mtime,
+              createdTime: diskId.mtime,
+              trajectoryId: "",
+              workspaces: injectedWorkspaces,
+              _diskOnly: true,
+            },
+          });
+        }
+      }
+
+      const parseTime = (t: unknown): number => {
+        if (typeof t === "string") {
+          const parsed = Date.parse(t);
+          if (!isNaN(parsed)) return parsed;
+        }
+        if (typeof t === "number") return t;
+        return 0;
+      };
+
+      // Sort candidates globally by lastModifiedTime desc
+      candidates.sort((a, b) => parseTime(b.lastModifiedTime) - parseTime(a.lastModifiedTime));
+
+      // Limit to MAX_TOTAL_CONVERSATIONS
+      const MAX_TOTAL_CONVERSATIONS = 100;
+      const topCandidates = candidates.slice(0, MAX_TOTAL_CONVERSATIONS);
+
+      const finalMerged: Record<string, Record<string, unknown>> = {};
+      const diskOnlyIds: string[] = [];
+
+      for (const cand of topCandidates) {
+        finalMerged[cand.id] = cand.summary;
+        if (cand.summary._diskOnly) {
+          diskOnlyIds.push(cand.id);
         }
       }
 
@@ -298,7 +322,7 @@ export function registerConversationRoutes(app: Hono): void {
         warmUpDiskConversations(diskOnlyIds, instances);
       }
 
-      return c.json({ trajectorySummaries: merged });
+      return c.json({ trajectorySummaries: finalMerged });
     } catch (err) {
       return handleRPCError(c, err);
     }
