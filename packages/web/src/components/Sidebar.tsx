@@ -45,9 +45,10 @@ function relativeTime(iso: string): string {
 }
 
 function extractWorkspaceName(conv: ConversationEntry): string {
-  return workspaceNameFromMetadata(conv.summary.workspaces?.[0], {
+  const name = workspaceNameFromMetadata(conv.summary.workspaces?.[0], {
     collapseAntigravityPlayground: true,
   });
+  return name === "Others" ? "No Workspace" : name;
 }
 
 function isArchived(conv: ConversationEntry): boolean {
@@ -142,7 +143,6 @@ export function Sidebar({
     }
 
     return Array.from(map.entries())
-      .filter(([name]) => name !== "Others") // Hide workspace-less conversations
       .map(([name, convs]) => {
         // Sort within group: running first, then by lastModifiedTime desc
         convs.sort((a, b) => {
@@ -163,6 +163,10 @@ export function Sidebar({
         };
       })
       .sort((a, b) => {
+        // Keep "No Workspace" group at the bottom
+        if (a.name === "No Workspace" && b.name !== "No Workspace") return 1;
+        if (a.name !== "No Workspace" && b.name === "No Workspace") return -1;
+
         const aHasActive = a.conversations.some((c) => !isArchived(c));
         const bHasActive = b.conversations.some((c) => !isArchived(c));
         if (aHasActive !== bHasActive) return aHasActive ? -1 : 1;
@@ -177,6 +181,7 @@ export function Sidebar({
             new Date(c.summary.lastModifiedTime).getTime(),
           ),
         );
+
         return bTime - aTime;
       });
   }, [conversations]);
