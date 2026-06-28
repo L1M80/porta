@@ -56,6 +56,7 @@ export interface FilePermissionRequest {
   absolutePathUri: string;
   blockReason?: string;
   isDirectory?: boolean;
+  action?: string;
 }
 
 // ── Ask Question ──
