@@ -85,6 +85,12 @@ export interface AskQuestionInteraction {
 
 export interface RequestedInteractionData {
   askQuestion?: AskQuestionRequest;
+  permission?: {
+    resource?: {
+      action?: string;
+      target?: string;
+    };
+  };
 }
 
 export interface CompletedInteractionData {
