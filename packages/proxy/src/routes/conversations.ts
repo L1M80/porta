@@ -21,6 +21,7 @@ import {
   getPrimaryWorkspaceUri,
   scanDiskConversations,
   withNormalizedConversationWorkspaces,
+  getProjectNameMap,
 } from "../metadata.js";
 import { handleRPCError } from "../errors.js";
 import { runConversationMutation } from "../conversation-mutations.js";
@@ -168,6 +169,7 @@ function warmUpDiskConversations(
 export function registerConversationRoutes(app: Hono): void {
   app.get("/api/conversations", async (c) => {
     try {
+      const projectNameMap = await getProjectNameMap();
       const instances = await discovery.getInstances();
       const merged: Record<string, Record<string, unknown>> = {};
 
@@ -191,6 +193,15 @@ export function registerConversationRoutes(app: Hono): void {
             for (const [id, summary] of Object.entries(summaries)) {
               const normalizedSummary =
                 withNormalizedConversationWorkspaces(summary);
+
+              const projectId = (normalizedSummary.trajectoryMetadata as any)?.projectId;
+              if (projectId) {
+                const projectName = projectNameMap.get(projectId);
+                if (projectName) {
+                  (normalizedSummary as any).projectName = projectName;
+                }
+              }
+
               const wsUri = getPrimaryWorkspaceUri(normalizedSummary);
               if (wsUri) {
                 conversationAffinity.set(id, uriToWorkspaceId(wsUri));
