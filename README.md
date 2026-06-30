@@ -30,10 +30,10 @@ git clone https://github.com/L1M80/porta.git
 cd porta
 pnpm install
 cp .env.example .env   # edit if needed — see comments inside
-pnpm dev               # proxy (:3170) + web (:5173)
+pnpm dev               # proxy (:3170) + web (:3070)
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3070` in your browser.
 
 ### LAN access
 
