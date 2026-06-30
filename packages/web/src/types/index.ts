@@ -8,6 +8,7 @@ export interface ConversationSummary {
   workspaces: Workspace[];
   lastUserInputTime?: string;
   lastUserInputStepIndex?: number;
+  projectName?: string;
 }
 
 export interface MediaAttachment {
