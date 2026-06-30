@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-30
+
+### Added
+
+- Sidebar conversations can now be grouped by Antigravity desktop project names
+  loaded from local project metadata, while still falling back to workspace
+  names when project metadata is unavailable. (#102)
+
+### Changed
+
+- Workspace lists are sorted by recent conversation activity, and active
+  workspaces without history stay easy to find near the top. (#99)
+- Workspace-less and warm-up conversations are now shown under a "No Workspace"
+  sidebar group instead of being hidden, making archived conversations
+  reachable again. (#99)
+
+### Fixed
+
+- Quick start documentation now points to the configured Vite dev UI port
+  (`3070`) instead of the Vite default (`5173`). (#104)
+
 ## [0.11.0] - 2026-06-21
 
 ### Added
@@ -234,7 +255,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/L1M80/porta/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/L1M80/porta/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/L1M80/porta/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/L1M80/porta/compare/v0.8.0...v0.9.0
