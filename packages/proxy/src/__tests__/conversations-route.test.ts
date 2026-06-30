@@ -193,6 +193,81 @@ describe("GET /api/conversations", () => {
       ],
     });
   });
+
+  it("caps total returned conversations to 100 when LS returns > 100", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    // Generate 105 summaries with different lastModifiedTime values
+    const baseTime = new Date("2026-06-01T00:00:00.000Z").getTime();
+    const trajectorySummaries: Record<string, any> = {};
+    for (let i = 1; i <= 105; i++) {
+      const timeStr = new Date(baseTime + i * 1000).toISOString();
+      trajectorySummaries[`c-${i}`] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: timeStr,
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+
+    mockRpcCall.mockResolvedValue({ trajectorySummaries });
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const keys = Object.keys(body.trajectorySummaries);
+    expect(keys).toHaveLength(100);
+
+    // The returned list should exclude the oldest ones (c-1 to c-5)
+    // and include the 100 newest ones (c-6 to c-105)
+    expect(keys).not.toContain("c-1");
+    expect(keys).not.toContain("c-5");
+    expect(keys).toContain("c-6");
+    expect(keys).toContain("c-105");
+  });
+
+  it("prioritizes a newer disk conversation and evicts older LS conversations when combined limit is exceeded", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    // LS returns 100 older conversations
+    const trajectorySummaries: Record<string, any> = {};
+    for (let i = 1; i <= 100; i++) {
+      trajectorySummaries[`c-${i}`] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: "2026-06-01T00:00:00.000Z",
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+    mockRpcCall.mockImplementation(async (method) => {
+      if (method === "GetAllCascadeTrajectories") {
+        return { trajectorySummaries };
+      }
+      return { steps: [] };
+    });
+
+    // Disk scan finds 1 newer conversation
+    mockScanDiskConversations.mockResolvedValue([
+      { id: "c-new-disk", mtime: "2026-06-02T00:00:00.000Z" },
+    ]);
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const keys = Object.keys(body.trajectorySummaries);
+    expect(keys).toHaveLength(100);
+
+    // The newer disk-only conversation must be included
+    expect(keys).toContain("c-new-disk");
+    expect(body.trajectorySummaries["c-new-disk"]).toMatchObject({
+      _diskOnly: true,
+      lastModifiedTime: "2026-06-02T00:00:00.000Z",
+    });
+  });
 });
 
 describe("POST /api/conversations", () => {
