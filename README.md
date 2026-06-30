@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/L1M80/porta/actions/workflows/ci.yml/badge.svg)](https://github.com/L1M80/porta/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-0.11.0-green)
+![Version](https://img.shields.io/badge/version-0.12.0-green)
 
 Remote web interface for [Antigravity](https://antigravity.google/) Agent Manager.  
 Access your local Antigravity sessions from your phone, tablet, or any remote browser through a lightweight LSP bridge.
@@ -30,10 +30,10 @@ git clone https://github.com/L1M80/porta.git
 cd porta
 pnpm install
 cp .env.example .env   # edit if needed — see comments inside
-pnpm dev               # proxy (:3170) + web (:5173)
+pnpm dev               # proxy (:3170) + web (:3070)
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3070` in your browser.
 
 ### LAN access
 
