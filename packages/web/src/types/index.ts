@@ -57,6 +57,7 @@ export interface FilePermissionRequest {
   absolutePathUri: string;
   blockReason?: string;
   isDirectory?: boolean;
+  action?: string;
 }
 
 // ── Ask Question ──
@@ -86,6 +87,12 @@ export interface AskQuestionInteraction {
 
 export interface RequestedInteractionData {
   askQuestion?: AskQuestionRequest;
+  permission?: {
+    resource?: {
+      action?: string;
+      target?: string;
+    };
+  };
 }
 
 export interface CompletedInteractionData {

@@ -91,7 +91,11 @@ export function FilePermissionCard({
           <IconLock size={12} />
         </span>
         <span className="step-card-desc">
-          File access requested:{" "}
+          {permissionRequest.action === "write_file"
+            ? "Allow write access to this path: "
+            : permissionRequest.action === "read_file"
+              ? "Allow read access to this path: "
+              : "File access requested: "}
           <code className="step-card-file">{displayPath}</code>
           {isDir ? " (directory)" : ""}
         </span>
