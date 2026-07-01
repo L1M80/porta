@@ -468,3 +468,58 @@ describe("POST /api/conversations/:id/ask-question", () => {
     expect(mockRpcForConversation).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/conversations/:id/file-permission", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+    mockRpcForConversation.mockResolvedValue({ ok: true });
+  });
+
+  it("forwards file-permission decision as a CascadeUserInteraction", async () => {
+    const res = await app().request("/api/conversations/c-1/file-permission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trajectoryId: "traj-1",
+        stepIndex: 12,
+        allow: true,
+        scope: 1,
+        absolutePathUri: "file:///some/path",
+      }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "HandleCascadeUserInteraction",
+      "c-1",
+      {
+        cascadeId: "c-1",
+        interaction: {
+          trajectoryId: "traj-1",
+          stepIndex: 12,
+          filePermission: {
+            allow: true,
+            scope: 1,
+            absolutePathUri: "file:///some/path",
+          },
+        },
+      },
+    );
+  });
+
+  it("rejects invalid requests", async () => {
+    const res = await app().request("/api/conversations/c-1/file-permission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allow: true }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockRpcForConversation).not.toHaveBeenCalled();
+  });
+});
