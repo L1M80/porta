@@ -198,9 +198,8 @@ describe("GET /api/conversations", () => {
     const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
     mockGetInstances.mockResolvedValue([hubLS]);
 
-    // Generate 105 summaries with different lastModifiedTime values
     const baseTime = new Date("2026-06-01T00:00:00.000Z").getTime();
-    const trajectorySummaries: Record<string, any> = {};
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
     for (let i = 1; i <= 105; i++) {
       const timeStr = new Date(baseTime + i * 1000).toISOString();
       trajectorySummaries[`c-${i}`] = {
@@ -220,8 +219,6 @@ describe("GET /api/conversations", () => {
     const keys = Object.keys(body.trajectorySummaries);
     expect(keys).toHaveLength(100);
 
-    // The returned list should exclude the oldest ones (c-1 to c-5)
-    // and include the 100 newest ones (c-6 to c-105)
     expect(keys).not.toContain("c-1");
     expect(keys).not.toContain("c-5");
     expect(keys).toContain("c-6");
@@ -232,8 +229,7 @@ describe("GET /api/conversations", () => {
     const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
     mockGetInstances.mockResolvedValue([hubLS]);
 
-    // LS returns 100 older conversations
-    const trajectorySummaries: Record<string, any> = {};
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
     for (let i = 1; i <= 100; i++) {
       trajectorySummaries[`c-${i}`] = {
         summary: `Conv ${i}`,
@@ -249,7 +245,6 @@ describe("GET /api/conversations", () => {
       return { steps: [] };
     });
 
-    // Disk scan finds 1 newer conversation
     mockScanDiskConversations.mockResolvedValue([
       { id: "c-new-disk", mtime: "2026-06-02T00:00:00.000Z" },
     ]);
@@ -261,12 +256,41 @@ describe("GET /api/conversations", () => {
     const keys = Object.keys(body.trajectorySummaries);
     expect(keys).toHaveLength(100);
 
-    // The newer disk-only conversation must be included
     expect(keys).toContain("c-new-disk");
+    expect(
+      keys.filter((key) => key.startsWith("c-") && key !== "c-new-disk"),
+    ).toHaveLength(99);
     expect(body.trajectorySummaries["c-new-disk"]).toMatchObject({
       _diskOnly: true,
       lastModifiedTime: "2026-06-02T00:00:00.000Z",
     });
+  });
+
+  it("uses conversation ID as a stable tie-breaker", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
+    for (let i = 101; i >= 1; i--) {
+      const id = `c-${i.toString().padStart(3, "0")}`;
+      trajectorySummaries[id] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: "2026-06-01T00:00:00.000Z",
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+
+    mockRpcCall.mockResolvedValue({ trajectorySummaries });
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+    const keys = Object.keys(body.trajectorySummaries);
+
+    expect(keys).toHaveLength(100);
+    expect(keys[0]).toBe("c-001");
+    expect(keys.at(-1)).toBe("c-100");
+    expect(keys).not.toContain("c-101");
   });
 });
 

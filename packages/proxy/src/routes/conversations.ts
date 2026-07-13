@@ -35,6 +35,28 @@ import { messageTracker } from "../message-tracker.js";
 import { conversationSignals } from "../signals.js";
 
 const MAX_STEPS_LIMIT = 500;
+const MAX_TOTAL_CONVERSATIONS = 100;
+
+interface ConversationCandidate {
+  id: string;
+  modifiedAt: number;
+  summary: Record<string, unknown>;
+}
+
+function parseConversationTime(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return 0;
+
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function compareConversationCandidates(
+  a: ConversationCandidate,
+  b: ConversationCandidate,
+): number {
+  return b.modifiedAt - a.modifiedAt || a.id.localeCompare(b.id);
+}
 
 // ── Background warm-up for disk-only conversations ──
 
@@ -252,13 +274,13 @@ export function registerConversationRoutes(app: Hono): void {
         diskConversationDirs.length > 0 ? diskConversationDirs : undefined,
       );
 
-      // Create a unified list of candidates combining LS-returned and disk-only ones
-      const candidates: { id: string; lastModifiedTime: string; summary: Record<string, unknown> }[] = [];
+      // Rank LS and disk-only conversations together before applying the cap.
+      const candidates: ConversationCandidate[] = [];
 
       for (const [id, summary] of Object.entries(merged)) {
         candidates.push({
           id,
-          lastModifiedTime: typeof summary.lastModifiedTime === "string" ? summary.lastModifiedTime : "",
+          modifiedAt: parseConversationTime(summary.lastModifiedTime),
           summary,
         });
       }
@@ -274,7 +296,7 @@ export function registerConversationRoutes(app: Hono): void {
 
           candidates.push({
             id: diskId.id,
-            lastModifiedTime: diskId.mtime,
+            modifiedAt: parseConversationTime(diskId.mtime),
             summary: {
               summary: diskId.id.slice(0, 8) + "…",
               stepCount: 0,
@@ -289,29 +311,15 @@ export function registerConversationRoutes(app: Hono): void {
         }
       }
 
-      const parseTime = (t: unknown): number => {
-        if (typeof t === "string") {
-          const parsed = Date.parse(t);
-          if (!isNaN(parsed)) return parsed;
-        }
-        if (typeof t === "number") return t;
-        return 0;
-      };
-
-      // Sort candidates globally by lastModifiedTime desc
-      candidates.sort((a, b) => parseTime(b.lastModifiedTime) - parseTime(a.lastModifiedTime));
-
-      // Limit to MAX_TOTAL_CONVERSATIONS
-      const MAX_TOTAL_CONVERSATIONS = 100;
-      const topCandidates = candidates.slice(0, MAX_TOTAL_CONVERSATIONS);
+      candidates.sort(compareConversationCandidates);
 
       const finalMerged: Record<string, Record<string, unknown>> = {};
       const diskOnlyIds: string[] = [];
 
-      for (const cand of topCandidates) {
-        finalMerged[cand.id] = cand.summary;
-        if (cand.summary._diskOnly) {
-          diskOnlyIds.push(cand.id);
+      for (const candidate of candidates.slice(0, MAX_TOTAL_CONVERSATIONS)) {
+        finalMerged[candidate.id] = candidate.summary;
+        if (candidate.summary._diskOnly) {
+          diskOnlyIds.push(candidate.id);
         }
       }
 
