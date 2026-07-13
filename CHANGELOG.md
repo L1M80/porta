@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-13
+
+### Added
+
+- File permission requests delivered through `requestedInteraction.permission`
+  are now shown as actionable read/write approval cards and respond through the
+  matching generic permission interaction. (#103)
+
+### Changed
+
+- Conversation discovery now ranks Language Server and disk-only conversations
+  together by recency and returns at most 100 entries, preventing repeated
+  warm-up eviction loops while keeping newer unloaded conversations available.
+  (#100)
+
 ## [0.12.0] - 2026-06-30
 
 ### Added
@@ -255,7 +270,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/L1M80/porta/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/L1M80/porta/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/L1M80/porta/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/L1M80/porta/compare/v0.9.0...v0.10.0
