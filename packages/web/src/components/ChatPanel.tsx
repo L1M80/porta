@@ -278,6 +278,7 @@ function SystemMessage({
               step={msg.step}
               permissionRequest={fpr}
               onFilePermission={onFilePermission}
+              onGenericPermission={onCommandAction}
             />
           </div>
         );
