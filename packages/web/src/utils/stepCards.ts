@@ -14,15 +14,41 @@ import type {
 export function getFilePermissionRequest(
   step: TrajectoryStep,
 ): FilePermissionRequest | undefined {
-  return (
+  let fpr =
     step.filePermissionRequest ??
     step.viewFile?.filePermissionRequest ??
     step.listDirectory?.filePermissionRequest ??
     step.codeAction?.filePermissionRequest ??
     step.grepSearch?.filePermissionRequest ??
     step.viewFileOutline?.filePermissionRequest ??
-    step.viewCodeItem?.filePermissionRequest
-  );
+    step.viewCodeItem?.filePermissionRequest;
+
+  if (fpr) {
+    fpr = {
+      ...fpr,
+      action:
+        fpr.action ?? (step.codeAction ? "write_file" : "read_file"),
+      responseKind: "filePermission",
+    };
+  }
+
+  if (!fpr && step.requestedInteraction?.permission) {
+    const perm = step.requestedInteraction.permission;
+    if (
+      perm.resource &&
+      (perm.resource.action === "read_file" ||
+        perm.resource.action === "write_file")
+    ) {
+      fpr = {
+        absolutePathUri: perm.resource.target ?? "",
+        isDirectory: false,
+        action: perm.resource.action,
+        responseKind: "permission",
+      };
+    }
+  }
+
+  return fpr;
 }
 
 export function getAskQuestionRequest(
