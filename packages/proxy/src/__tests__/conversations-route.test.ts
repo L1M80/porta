@@ -523,3 +523,41 @@ describe("POST /api/conversations/:id/file-permission", () => {
     expect(mockRpcForConversation).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/conversations/:id/command-action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+    mockRpcForConversation.mockResolvedValue({ ok: true });
+  });
+
+  it("forwards the decision as a generic permission response", async () => {
+    const res = await app().request("/api/conversations/c-1/command-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trajectoryId: "traj-1",
+        stepIndex: 12,
+        approved: true,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "HandleCascadeUserInteraction",
+      "c-1",
+      {
+        cascadeId: "c-1",
+        interaction: {
+          trajectoryId: "traj-1",
+          stepIndex: 12,
+          permission: {
+            allow: true,
+          },
+        },
+      },
+    );
+  });
+});

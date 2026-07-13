@@ -23,12 +23,13 @@ export function getFilePermissionRequest(
     step.viewFileOutline?.filePermissionRequest ??
     step.viewCodeItem?.filePermissionRequest;
 
-  if (fpr && !fpr.action) {
-    if (step.codeAction) {
-      fpr.action = "write_file";
-    } else {
-      fpr.action = "read_file";
-    }
+  if (fpr) {
+    fpr = {
+      ...fpr,
+      action:
+        fpr.action ?? (step.codeAction ? "write_file" : "read_file"),
+      responseKind: "filePermission",
+    };
   }
 
   if (!fpr && step.requestedInteraction?.permission) {
@@ -42,6 +43,7 @@ export function getFilePermissionRequest(
         absolutePathUri: perm.resource.target ?? "",
         isDirectory: false,
         action: perm.resource.action,
+        responseKind: "permission",
       };
     }
   }

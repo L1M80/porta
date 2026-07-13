@@ -57,6 +57,8 @@ export interface FilePermissionRequest {
   blockReason?: string;
   isDirectory?: boolean;
   action?: string;
+  /** Response field expected by HandleCascadeUserInteraction. */
+  responseKind?: "filePermission" | "permission";
 }
 
 // ── Ask Question ──
