@@ -193,6 +193,105 @@ describe("GET /api/conversations", () => {
       ],
     });
   });
+
+  it("caps total returned conversations to 100 when LS returns > 100", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    const baseTime = new Date("2026-06-01T00:00:00.000Z").getTime();
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
+    for (let i = 1; i <= 105; i++) {
+      const timeStr = new Date(baseTime + i * 1000).toISOString();
+      trajectorySummaries[`c-${i}`] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: timeStr,
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+
+    mockRpcCall.mockResolvedValue({ trajectorySummaries });
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const keys = Object.keys(body.trajectorySummaries);
+    expect(keys).toHaveLength(100);
+
+    expect(keys).not.toContain("c-1");
+    expect(keys).not.toContain("c-5");
+    expect(keys).toContain("c-6");
+    expect(keys).toContain("c-105");
+  });
+
+  it("prioritizes a newer disk conversation and evicts older LS conversations when combined limit is exceeded", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
+    for (let i = 1; i <= 100; i++) {
+      trajectorySummaries[`c-${i}`] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: "2026-06-01T00:00:00.000Z",
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+    mockRpcCall.mockImplementation(async (method) => {
+      if (method === "GetAllCascadeTrajectories") {
+        return { trajectorySummaries };
+      }
+      return { steps: [] };
+    });
+
+    mockScanDiskConversations.mockResolvedValue([
+      { id: "c-new-disk", mtime: "2026-06-02T00:00:00.000Z" },
+    ]);
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const keys = Object.keys(body.trajectorySummaries);
+    expect(keys).toHaveLength(100);
+
+    expect(keys).toContain("c-new-disk");
+    expect(
+      keys.filter((key) => key.startsWith("c-") && key !== "c-new-disk"),
+    ).toHaveLength(99);
+    expect(body.trajectorySummaries["c-new-disk"]).toMatchObject({
+      _diskOnly: true,
+      lastModifiedTime: "2026-06-02T00:00:00.000Z",
+    });
+  });
+
+  it("uses conversation ID as a stable tie-breaker", async () => {
+    const hubLS = makeInstance({ pid: 1, workspaceId: undefined });
+    mockGetInstances.mockResolvedValue([hubLS]);
+
+    const trajectorySummaries: Record<string, Record<string, unknown>> = {};
+    for (let i = 101; i >= 1; i--) {
+      const id = `c-${i.toString().padStart(3, "0")}`;
+      trajectorySummaries[id] = {
+        summary: `Conv ${i}`,
+        stepCount: 5,
+        lastModifiedTime: "2026-06-01T00:00:00.000Z",
+        workspaces: [{ workspaceFolderAbsoluteUri: "file:///home/user/project" }],
+      };
+    }
+
+    mockRpcCall.mockResolvedValue({ trajectorySummaries });
+
+    const res = await app().request("/api/conversations");
+    const body = await res.json();
+    const keys = Object.keys(body.trajectorySummaries);
+
+    expect(keys).toHaveLength(100);
+    expect(keys[0]).toBe("c-001");
+    expect(keys.at(-1)).toBe("c-100");
+    expect(keys).not.toContain("c-101");
+  });
 });
 
 describe("POST /api/conversations", () => {
@@ -466,5 +565,98 @@ describe("POST /api/conversations/:id/ask-question", () => {
 
     expect(res.status).toBe(400);
     expect(mockRpcForConversation).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/conversations/:id/file-permission", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+    mockRpcForConversation.mockResolvedValue({ ok: true });
+  });
+
+  it("forwards file-permission decision as a CascadeUserInteraction", async () => {
+    const res = await app().request("/api/conversations/c-1/file-permission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trajectoryId: "traj-1",
+        stepIndex: 12,
+        allow: true,
+        scope: 1,
+        absolutePathUri: "file:///some/path",
+      }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "HandleCascadeUserInteraction",
+      "c-1",
+      {
+        cascadeId: "c-1",
+        interaction: {
+          trajectoryId: "traj-1",
+          stepIndex: 12,
+          filePermission: {
+            allow: true,
+            scope: 1,
+            absolutePathUri: "file:///some/path",
+          },
+        },
+      },
+    );
+  });
+
+  it("rejects invalid requests", async () => {
+    const res = await app().request("/api/conversations/c-1/file-permission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allow: true }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockRpcForConversation).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/conversations/:id/command-action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    conversationAffinity.clear();
+    conversationInstanceAffinity.clear();
+    mockScanDiskConversations.mockResolvedValue([]);
+    mockRpcForConversation.mockResolvedValue({ ok: true });
+  });
+
+  it("forwards the decision as a generic permission response", async () => {
+    const res = await app().request("/api/conversations/c-1/command-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trajectoryId: "traj-1",
+        stepIndex: 12,
+        approved: true,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockRpcForConversation).toHaveBeenCalledWith(
+      "HandleCascadeUserInteraction",
+      "c-1",
+      {
+        cascadeId: "c-1",
+        interaction: {
+          trajectoryId: "traj-1",
+          stepIndex: 12,
+          permission: {
+            allow: true,
+          },
+        },
+      },
+    );
   });
 });
