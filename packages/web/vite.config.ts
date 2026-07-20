@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import { normalizeBasePath } from "./src/basePath.shared";
+import { accessGate } from "./vite-access-gate";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -25,12 +26,22 @@ export default defineConfig(({ mode }) => {
     ? true
     : (allowedHostsRaw ? allowedHostsRaw.split(",") : undefined);
 
+  // Access gate: when PORTA_REQUIRE_AUTH is set, every request (page, /api, WebSocket)
+  // must carry a valid PORTA_ACCESS_TOKEN. Essential when the dev server is exposed
+  // publicly via a tunnel. Fail-closed: enabled but no token => everything denied.
+  const requireAuth = /^(1|true|yes|on)$/i.test(
+    env.PORTA_REQUIRE_AUTH || process.env.PORTA_REQUIRE_AUTH || "",
+  );
+  const accessToken = env.PORTA_ACCESS_TOKEN || process.env.PORTA_ACCESS_TOKEN || "";
+
   return {
     base: basePath,
     define: {
       "import.meta.env.PORTA_BASE_PATH": JSON.stringify(basePath),
     },
     plugins: [
+      // Must be first so it gates requests before any other middleware.
+      accessGate({ enabled: requireAuth, token: accessToken }),
       react(),
       VitePWA({
         registerType: "autoUpdate",
