@@ -370,15 +370,18 @@ export function useStepsStream(
       const gen = genRef.current;
 
       try {
+        const hasLoadedSteps = stepsRef.current.length > 0;
         const isUnknown = totalRef.current === 0;
-        const startOffset = isUnknown
-          ? 0
-          : Math.max(0, totalRef.current - PAGE_SIZE);
+        const startOffset = hasLoadedSteps
+          ? Math.max(0, endOffsetRef.current - 20)
+          : isUnknown
+            ? 0
+            : Math.max(0, totalRef.current - PAGE_SIZE);
         const result = await api.getSteps(
           cascadeId,
           startOffset,
           undefined,
-          isUnknown ? PAGE_SIZE : undefined,
+          !hasLoadedSteps && isUnknown ? PAGE_SIZE : undefined,
         );
         if (!mountedRef.current || gen !== genRef.current) return;
 

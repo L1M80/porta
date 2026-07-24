@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAdaptorServer } from "@hono/node-server";
 
-import { discovery } from "./routing.js";
+import { discovery, rpc, conversationAffinity } from "./routing.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerModelRoutes } from "./routes/models.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -42,19 +42,85 @@ app.use(
   }),
 );
 
-// ── Health ──
+// ── Health & Diagnostics ──
 
 app.get("/api/health", async (c) => {
   const instances = await discovery.getInstances();
+  const lsDiagnostics = await Promise.all(
+    instances.map(async (i) => {
+      const start = Date.now();
+      let reachable = false;
+      let latencyMs = -1;
+      try {
+        await rpc.call("GetProcessInfo", {}, i);
+        reachable = true;
+        latencyMs = Date.now() - start;
+      } catch {
+        // Ping failed or timed out
+      }
+      return {
+        pid: i.pid,
+        httpsPort: i.httpsPort,
+        workspaceId: i.workspaceId,
+        source: i.source,
+        reachable,
+        latencyMs,
+      };
+    }),
+  );
+
+  const isOk = lsDiagnostics.length > 0 && lsDiagnostics.some((l) => l.reachable);
   return c.json({
-    status: "ok",
-    proxy: { port: PORT, uptime: process.uptime() },
-    languageServers: instances.map((i) => ({
-      pid: i.pid,
-      httpsPort: i.httpsPort,
-      workspaceId: i.workspaceId,
-      source: i.source,
-    })),
+    status: isOk ? "ok" : "degraded",
+    proxy: {
+      port: PORT,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+    },
+    languageServers: lsDiagnostics,
+    affinityEntries: conversationAffinity.size,
+    rpcDiagnostics: rpc.getDiagnostics(),
+  });
+});
+
+app.get("/api/diagnostics", async (c) => {
+  const instances = await discovery.getInstances();
+  const lsDiagnostics = await Promise.all(
+    instances.map(async (i) => {
+      const start = Date.now();
+      let reachable = false;
+      let latencyMs = -1;
+      let errMessage = "";
+      try {
+        await rpc.call("GetProcessInfo", {}, i);
+        reachable = true;
+        latencyMs = Date.now() - start;
+      } catch (err) {
+        errMessage = err instanceof Error ? err.message : String(err);
+      }
+      return {
+        pid: i.pid,
+        httpsPort: i.httpsPort,
+        workspaceId: i.workspaceId,
+        source: i.source,
+        reachable,
+        latencyMs,
+        error: errMessage || undefined,
+      };
+    }),
+  );
+
+  return c.json({
+    timestamp: new Date().toISOString(),
+    proxy: {
+      port: PORT,
+      host: HOST,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+    },
+    languageServers: lsDiagnostics,
+    affinityCacheSize: conversationAffinity.size,
+    rpcStats: rpc.getDiagnostics(),
   });
 });
 

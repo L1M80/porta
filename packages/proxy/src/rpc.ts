@@ -43,8 +43,46 @@ class TransportFailure extends Error {
   }
 }
 
+const DEFAULT_RPC_TIMEOUT_MS = parseInt(
+  process.env.PORTA_RPC_TIMEOUT_MS ?? "15000",
+  10,
+);
+
+export interface RPCDiagnosticError {
+  method: string;
+  message: string;
+  code: string;
+  timestamp: string;
+}
+
 export class RPCClient {
+  private recentErrors: RPCDiagnosticError[] = [];
+  private totalRequests = 0;
+  private totalFailures = 0;
+
   constructor(private readonly discovery: LSDiscovery) {}
+
+  public recordError(method: string, err: unknown): void {
+    const message = err instanceof Error ? err.message : String(err);
+    const code = err instanceof RPCError ? err.code : "unknown";
+    this.recentErrors.unshift({
+      method,
+      message,
+      code,
+      timestamp: new Date().toISOString(),
+    });
+    if (this.recentErrors.length > 20) {
+      this.recentErrors.pop();
+    }
+  }
+
+  public getDiagnostics() {
+    return {
+      totalRequests: this.totalRequests,
+      totalFailures: this.totalFailures,
+      recentErrors: [...this.recentErrors],
+    };
+  }
 
   /**
    * Call a Connect RPC method on the Language Server.
@@ -55,9 +93,12 @@ export class RPCClient {
     body: Record<string, unknown> = {},
     instance?: LSInstance,
   ): Promise<T> {
+    this.totalRequests++;
     const ls = instance ?? (await this.discovery.getInstance());
     if (!ls) {
-      throw new RPCError("No Language Server instance found", "unavailable");
+      const err = new RPCError("No Language Server instance found", "unavailable");
+      this.recordError(method, err);
+      throw err;
     }
 
     try {
@@ -97,6 +138,8 @@ export class RPCClient {
 
       return JSON.parse(value.body) as T;
     } catch (err) {
+      this.totalFailures++;
+      this.recordError(method, err);
       if (err instanceof RPCError) {
         throw err;
       }
@@ -170,6 +213,7 @@ export class RPCClient {
           "x-codeium-csrf-token": ls.csrfToken,
           "Content-Length": Buffer.byteLength(payload),
         },
+        timeout: DEFAULT_RPC_TIMEOUT_MS,
         ...(useTls ? { rejectUnauthorized: false } : {}),
       };
 
@@ -187,6 +231,15 @@ export class RPCClient {
           return;
         }
         resolve(res);
+      });
+
+      req.on("timeout", () => {
+        req.destroy(
+          new RPCError(
+            `Language Server RPC ${method} timed out after ${DEFAULT_RPC_TIMEOUT_MS}ms`,
+            "deadline_exceeded",
+          ),
+        );
       });
 
       req.on("error", reject);
@@ -241,6 +294,7 @@ export class RPCClient {
           "x-codeium-csrf-token": ls.csrfToken,
           "Content-Length": Buffer.byteLength(payload),
         },
+        timeout: DEFAULT_RPC_TIMEOUT_MS,
         rejectUnauthorized: false,
       };
 
@@ -253,6 +307,15 @@ export class RPCClient {
           const data = Buffer.concat(chunks).toString("utf-8");
           resolve({ statusCode: res.statusCode ?? 500, body: data });
         });
+      });
+
+      req.on("timeout", () => {
+        req.destroy(
+          new RPCError(
+            `Language Server RPC ${method} timed out after ${DEFAULT_RPC_TIMEOUT_MS}ms`,
+            "deadline_exceeded",
+          ),
+        );
       });
 
       req.on("error", reject);
@@ -279,6 +342,7 @@ export class RPCClient {
           "x-codeium-csrf-token": ls.csrfToken,
           "Content-Length": Buffer.byteLength(payload),
         },
+        timeout: DEFAULT_RPC_TIMEOUT_MS,
       };
 
       const req = httpRequest(opts, (res) => {
@@ -290,6 +354,15 @@ export class RPCClient {
           const data = Buffer.concat(chunks).toString("utf-8");
           resolve({ statusCode: res.statusCode ?? 500, body: data });
         });
+      });
+
+      req.on("timeout", () => {
+        req.destroy(
+          new RPCError(
+            `Language Server RPC ${method} timed out after ${DEFAULT_RPC_TIMEOUT_MS}ms`,
+            "deadline_exceeded",
+          ),
+        );
       });
 
       req.on("error", reject);
