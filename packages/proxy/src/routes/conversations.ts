@@ -34,6 +34,7 @@ import {
 } from "../step-recovery.js";
 import { messageTracker } from "../message-tracker.js";
 import { conversationSignals } from "../signals.js";
+import { githubMonitor, parseGitHubPRUrls } from "../github-monitor.js";
 
 const MAX_STEPS_LIMIT = 500;
 const MAX_TOTAL_CONVERSATIONS = 100;
@@ -597,6 +598,18 @@ export function registerConversationRoutes(app: Hono): void {
 
         if (media && Array.isArray(media) && media.length > 0) {
           req.media = media;
+        }
+
+        // Auto-detect and track GitHub PR URLs in message items
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            if (item && typeof item.text === "string") {
+              const prs = parseGitHubPRUrls(item.text);
+              for (const pr of prs) {
+                githubMonitor.trackPR(id, pr.owner, pr.repo, pr.pullNumber);
+              }
+            }
+          }
         }
 
         const typeConfig =

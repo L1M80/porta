@@ -36,3 +36,6 @@ npm-debug.log*
 .oauth-token
 .agent
 .gemini
+
+# AntiCrow ローカルデータ
+.anticrow/

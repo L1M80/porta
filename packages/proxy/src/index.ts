@@ -16,6 +16,8 @@ import { registerWorkspaceRoutes } from "./routes/workspaces.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerSearchRoutes } from "./routes/search.js";
 import { registerRpcPassthroughRoutes } from "./routes/rpcPassthrough.js";
+import { registerGithubRoutes } from "./routes/github.js";
+import { githubMonitor } from "./github-monitor.js";
 import {
   assertSupportedListenHost,
   formatListenAddress,
@@ -66,6 +68,10 @@ registerWorkspaceRoutes(app);
 registerFileRoutes(app);
 registerSearchRoutes(app);
 registerRpcPassthroughRoutes(app);
+registerGithubRoutes(app);
+
+// Start background GitHub monitor polling
+githubMonitor.startPolling(30_000);
 
 // ── Start ──
 

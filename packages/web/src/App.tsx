@@ -299,6 +299,7 @@ function ChatView() {
         <ChatHeader
           title={headerTitle}
           projectName={projectSlug ?? undefined}
+          cascadeId={activeId ?? undefined}
           onMenuToggle={() => setSidebarOpen(true)}
         />
         {isSettingsPage ? (

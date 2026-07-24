@@ -188,4 +188,22 @@ export const api = {
       totalConversations: number;
       elapsedMs: number;
     }>(`/api/search?q=${encodeURIComponent(query)}`),
+
+  getTrackedPRs: (cascadeId: string) =>
+    request<{ prs: any[] }>(`/api/conversations/${cascadeId}/github/prs`),
+
+  trackPR: (cascadeId: string, url: string) =>
+    request<{ ok: boolean; tracked: any[] }>(
+      `/api/conversations/${cascadeId}/github/track`,
+      {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      },
+    ),
+
+  untrackPR: (cascadeId: string, owner: string, repo: string, pullNumber: number) =>
+    request<{ ok: boolean }>(
+      `/api/conversations/${cascadeId}/github/prs/${owner}/${repo}/${pullNumber}`,
+      { method: "DELETE" },
+    ),
 };

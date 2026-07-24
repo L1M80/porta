@@ -1,12 +1,14 @@
 import { IconMenu, IconFolder } from "./Icons";
+import { GitHubPrBadge } from "./GitHubPrBadge";
 
 interface Props {
   title: string;
   projectName?: string;
+  cascadeId?: string;
   onMenuToggle?: () => void;
 }
 
-export function ChatHeader({ title, projectName, onMenuToggle }: Props) {
+export function ChatHeader({ title, projectName, cascadeId, onMenuToggle }: Props) {
   return (
     <div className="main-header">
       {onMenuToggle && (
@@ -29,6 +31,7 @@ export function ChatHeader({ title, projectName, onMenuToggle }: Props) {
         {title}
       </span>
       <div className="main-header-actions">
+        {cascadeId && <GitHubPrBadge cascadeId={cascadeId} />}
         {projectName && (
           <span className="main-header-project">
             <IconFolder size={11} /> {projectName}
