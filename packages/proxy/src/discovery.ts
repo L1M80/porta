@@ -400,7 +400,7 @@ export class LSDiscovery {
   private pendingDiscovery: Promise<LSInstance[]> | null = null;
   private discoveryGeneration = 0;
 
-  constructor(ttlMs = 10_000) {
+  constructor(ttlMs = 60_000) {
     this.ttlMs = ttlMs;
   }
 
