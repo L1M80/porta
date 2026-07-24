@@ -53,14 +53,15 @@ Write-Host "Launcher PID: $($launcher.Id)"
 
 $webUrl = "http://${tailscaleIp}:${WebPort}/"
 $healthUrl = "http://${tailscaleIp}:${ProxyPort}/api/health"
+$startupTimeoutSeconds = if ($Stable) { 180 } else { 45 }
 
 Write-Host "Waiting for $webUrl ..."
-if (-not (Wait-PortaHttpOk -Url $webUrl)) {
+if (-not (Wait-PortaHttpOk -Url $webUrl -TimeoutSeconds $startupTimeoutSeconds)) {
   throw "Web UI did not become healthy at $webUrl"
 }
 
 Write-Host "Waiting for $healthUrl ..."
-if (-not (Wait-PortaHttpOk -Url $healthUrl)) {
+if (-not (Wait-PortaHttpOk -Url $healthUrl -TimeoutSeconds $startupTimeoutSeconds)) {
   throw "Proxy health did not become healthy through Vite at $healthUrl"
 }
 

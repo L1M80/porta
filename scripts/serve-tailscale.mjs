@@ -65,7 +65,6 @@ const runners = [
     commandName("pnpm"),
     ["--filter", "@porta/proxy", "start"],
     path.join(logsDir, "proxy-stable.log"),
-    { env: process.env },
   ),
   spawnLoggedProcess(
     "web",
@@ -81,7 +80,6 @@ const runners = [
       "--strictPort",
     ],
     path.join(logsDir, "web-stable.log"),
-    { env: process.env },
   ),
 ];
 
