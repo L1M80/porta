@@ -3,7 +3,8 @@ param(
   [int]$WebPort = 5173,
   [int]$ProxyPort = 3170,
   [switch]$Foreground,
-  [switch]$RequireLanguageServer
+  [switch]$RequireLanguageServer,
+  [switch]$Stable
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,24 +27,32 @@ if ($existing.Count -gt 0) {
 }
 
 if ($Foreground) {
-  Write-Host "Starting Porta in the foreground..."
-  pnpm dev:tailscale
+  if ($Stable) {
+    Write-Host "Starting Porta stable server in the foreground..."
+    pnpm serve:tailscale
+  } else {
+    Write-Host "Starting Porta dev server in the foreground..."
+    pnpm dev:tailscale
+  }
   exit $LASTEXITCODE
 }
 
-Write-Host "Starting Porta in the background..."
+$scriptName = if ($Stable) { "serve:tailscale" } else { "dev:tailscale" }
+$modeName = if ($Stable) { "stable" } else { "dev" }
+
+Write-Host "Starting Porta $modeName server in the background..."
 $launcher = Start-Process -FilePath "powershell.exe" -ArgumentList @(
   "-NoProfile",
   "-ExecutionPolicy",
   "Bypass",
   "-Command",
-  "Set-Location -LiteralPath '$repoRoot'; pnpm dev:tailscale"
+  "Set-Location -LiteralPath '$repoRoot'; pnpm $scriptName"
 ) -WindowStyle Hidden -PassThru
 
 Write-Host "Launcher PID: $($launcher.Id)"
 
 $webUrl = "http://${tailscaleIp}:${WebPort}/"
-$healthUrl = "http://${tailscaleIp}:${WebPort}/api/health"
+$healthUrl = "http://${tailscaleIp}:${ProxyPort}/api/health"
 
 Write-Host "Waiting for $webUrl ..."
 if (-not (Wait-PortaHttpOk -Url $webUrl)) {
@@ -55,7 +64,7 @@ if (-not (Wait-PortaHttpOk -Url $healthUrl)) {
   throw "Proxy health did not become healthy through Vite at $healthUrl"
 }
 
-$health = Get-PortaHealth -HostAddress $tailscaleIp -WebPort $WebPort
+$health = Get-PortaHealth -HostAddress $tailscaleIp -ProxyPort $ProxyPort
 $languageServerCount = @($health.languageServers).Count
 
 if ($RequireLanguageServer -and $languageServerCount -eq 0) {
@@ -65,4 +74,5 @@ if ($RequireLanguageServer -and $languageServerCount -eq 0) {
 Write-Host "Porta is running:"
 Write-Host "  Web UI:           $webUrl"
 Write-Host "  Proxy:            http://${tailscaleIp}:${ProxyPort}"
+Write-Host "  Mode:             $modeName"
 Write-Host "  Language servers: $languageServerCount"

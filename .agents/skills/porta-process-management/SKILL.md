@@ -14,11 +14,14 @@ Prefer the repo scripts over ad hoc process commands:
 ```powershell
 .\scripts\status-porta.ps1
 .\scripts\restart-porta.ps1
+.\scripts\restart-porta.ps1 -Stable
 .\scripts\restart-porta.ps1 -RequireLanguageServer
 .\scripts\stop-porta.ps1
 ```
 
 Use `-RequireLanguageServer` when the user needs the app to talk to Antigravity, not merely serve the web shell.
+
+Use `-Stable` when the user wants Porta to ignore source edits until an explicit rebuild/restart. Stable mode runs `pnpm serve:tailscale`, which builds once, starts the compiled proxy, and serves the built web app without Vite HMR or `tsx watch`.
 
 ## Expected Healthy State
 
@@ -31,14 +34,14 @@ http://100.121.236.5:5173/
 Healthy checks:
 
 - `5173` serves the Vite web UI with HTTP 200.
-- `5173/api/health` returns HTTP 200 quickly.
+- `3170/api/health` returns HTTP 200 quickly.
 - `languageServers` contains at least one entry when Antigravity IDE is running and discoverable.
 - The proxy listens on `100.121.236.5:3170`.
 - There should not be a stray Vite listener on `5174`; that usually means a duplicate dev launcher was started while `5173` was occupied.
 
 ## Diagnosis Notes
 
-If the web shell loads but the UI is stuck, check `/api/health`, `/api/workspaces`, and `/api/models`.
+If the web shell loads but the UI is stuck, check `http://100.121.236.5:3170/api/health`, `/api/workspaces`, and `/api/models` through the proxy. In stable mode the web app uses an absolute `VITE_API_BASE`, so do not rely on `5173/api/*` dev proxy routes.
 
 If Antigravity IDE is running but Porta reports `languageServers: []`, inspect the language server process:
 

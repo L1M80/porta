@@ -30,9 +30,12 @@ function Get-PortaDevProcesses {
     }
 
     $cmd -match "pnpm(?:\.mjs|\.cmd)?\s+dev:tailscale" -or
+    $cmd -match "pnpm(?:\.mjs|\.cmd)?\s+serve:tailscale" -or
     $cmd -match "scripts[\\/]+dev-tailscale\.mjs" -or
+    $cmd -match "scripts[\\/]+serve-tailscale\.mjs" -or
     ($cmd -match $repoPattern -and $cmd -match "packages[\\/]+web[\\/]+node_modules" -and $cmd -match "vite") -or
-    ($cmd -match $repoPattern -and $cmd -match "packages[\\/]+proxy[\\/]+node_modules" -and $cmd -match "tsx")
+    ($cmd -match $repoPattern -and $cmd -match "packages[\\/]+proxy[\\/]+node_modules" -and $cmd -match "tsx") -or
+    ($cmd -match $repoPattern -and $cmd -match "packages[\\/]+proxy[\\/]+dist[\\/]+index\.js")
   }
 }
 
@@ -100,10 +103,10 @@ function Wait-PortaHttpOk {
 function Get-PortaHealth {
   param(
     [string]$HostAddress,
-    [int]$WebPort = 5173,
+    [int]$ProxyPort = 3170,
     [int]$TimeoutSeconds = 10
   )
 
-  $url = "http://${HostAddress}:${WebPort}/api/health"
+  $url = "http://${HostAddress}:${ProxyPort}/api/health"
   Invoke-RestMethod -Uri $url -TimeoutSec $TimeoutSeconds
 }

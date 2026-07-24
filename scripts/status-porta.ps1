@@ -30,7 +30,7 @@ cmd /c "netstat -ano -p tcp | findstr /R "":$ProxyPort :$WebPort"""
 Write-Host ""
 Write-Host "Health:"
 try {
-  $health = Get-PortaHealth -HostAddress $tailscaleIp -WebPort $WebPort
+  $health = Get-PortaHealth -HostAddress $tailscaleIp -ProxyPort $ProxyPort
   $health | ConvertTo-Json -Depth 8
 } catch {
   Write-Warning $_.Exception.Message

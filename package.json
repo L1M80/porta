@@ -6,6 +6,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:cloud": "node scripts/dev-cloud.mjs",
     "dev:tailscale": "node scripts/dev-tailscale.mjs",
+    "serve:tailscale": "node scripts/serve-tailscale.mjs",
     "build": "pnpm -r build",
     "build:web": "pnpm --filter @porta/web build",
     "deploy": "node scripts/deploy.mjs",
