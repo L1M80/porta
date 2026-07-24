@@ -43,8 +43,6 @@ import {
 import type {
   AskQuestionEntry,
   ChatMessage,
-  ClientSettings,
-  TrajectoryStep,
   ChatSettings,
 } from "../types";
 

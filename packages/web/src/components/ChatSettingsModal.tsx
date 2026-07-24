@@ -16,7 +16,7 @@ const COMMON_PRESETS = ["git", "node", "pnpm", "npm", "bun", "python", "cargo", 
 export function ChatSettingsModal({
   isOpen,
   onClose,
-  cascadeId,
+  cascadeId: _cascadeId,
   chatTitle,
   settings,
   onUpdateSettings,

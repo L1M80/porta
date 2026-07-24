@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAdaptorServer } from "@hono/node-server";
 
+import { execSync } from "node:child_process";
 import { discovery } from "./routing.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerModelRoutes } from "./routes/models.js";
@@ -47,13 +48,49 @@ app.use(
 
 const PORTA_VERSION = "0.13.0";
 
+function getGitCommitInfo(): { sha: string; shortSha: string; url: string } | undefined {
+  try {
+    const sha = execSync("git rev-parse HEAD", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (!sha) return undefined;
+    const shortSha = sha.slice(0, 7);
+    let repoUrl = "https://github.com/stlim0727/porta";
+    try {
+      const originUrl = execSync("git remote get-url origin", {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      if (originUrl) {
+        const cleaned = originUrl
+          .replace(/^git@github\.com:/, "https://github.com/")
+          .replace(/\.git$/, "");
+        if (cleaned.startsWith("http")) repoUrl = cleaned;
+      }
+    } catch {
+      // fallback
+    }
+    return { sha, shortSha, url: `${repoUrl}/commit/${sha}` };
+  } catch {
+    return undefined;
+  }
+}
+
+const cachedGitCommit = getGitCommitInfo();
+
 // ── Health ──
 
 app.get("/api/health", async (c) => {
   const instances = await discovery.getInstances();
   return c.json({
     status: "ok",
-    proxy: { port: PORT, uptime: process.uptime(), version: PORTA_VERSION },
+    proxy: {
+      port: PORT,
+      uptime: process.uptime(),
+      version: PORTA_VERSION,
+      gitCommit: cachedGitCommit ?? getGitCommitInfo(),
+    },
     languageServers: instances.map((i) => ({
       pid: i.pid,
       httpsPort: i.httpsPort,

@@ -252,9 +252,28 @@ export function SettingsPanel({ settings, health, onUpdate, onBack }: Props) {
                 Remote web interface for Antigravity Agent Manager
               </span>
             </div>
-            <span className="settings-version-badge">
-              v{health?.proxy?.version ?? "0.13.0"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="settings-version-badge">
+                v{health?.proxy?.version ?? "0.13.0"}
+              </span>
+              {health?.proxy?.gitCommit && (
+                <a
+                  href={health.proxy.gitCommit.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="settings-version-badge"
+                  style={{
+                    color: "#38bdf8",
+                    borderColor: "rgba(56, 189, 248, 0.3)",
+                    background: "rgba(56, 189, 248, 0.1)",
+                    textDecoration: "none",
+                  }}
+                  title={`View commit ${health.proxy.gitCommit.sha} on GitHub`}
+                >
+                  {health.proxy.gitCommit.shortSha} ↗
+                </a>
+              )}
+            </div>
           </div>
           {health && (
             <div className="settings-row">
