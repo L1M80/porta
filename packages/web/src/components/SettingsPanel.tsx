@@ -16,7 +16,7 @@ import {
   requestBrowserNotificationPermission,
   type BrowserNotificationPermission,
 } from "../utils/browserNotifications";
-import type { ClientSettings } from "../types";
+import type { ClientSettings, HealthResponse } from "../types";
 import type { PlannerType } from "./ChatInput";
 
 interface ModelConfig {
@@ -29,11 +29,12 @@ interface ModelConfig {
 
 interface Props {
   settings: ClientSettings;
+  health?: HealthResponse;
   onUpdate: (patch: Partial<ClientSettings>) => void;
   onBack: () => void;
 }
 
-export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
+export function SettingsPanel({ settings, health, onUpdate, onBack }: Props) {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -239,6 +240,53 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* ── About & Version ── */}
+        <div className="settings-section">
+          <h2 className="settings-section-title">About Porta</h2>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Porta Version</span>
+              <span className="settings-row-desc">
+                Remote web interface for Antigravity Agent Manager
+              </span>
+            </div>
+            <span className="settings-version-badge">
+              v{health?.proxy?.version ?? "0.13.0"}
+            </span>
+          </div>
+          {health && (
+            <div className="settings-row">
+              <div className="settings-row-info">
+                <span className="settings-row-label">Language Server Status</span>
+                <span className="settings-row-desc">
+                  Connected local Antigravity instance(s)
+                </span>
+              </div>
+              <span
+                className="settings-version-badge"
+                style={{
+                  background:
+                    health.languageServers.length > 0
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(239, 68, 68, 0.15)",
+                  color:
+                    health.languageServers.length > 0
+                      ? "#4ade80"
+                      : "#f87171",
+                  borderColor:
+                    health.languageServers.length > 0
+                      ? "rgba(34, 197, 94, 0.3)"
+                      : "rgba(239, 68, 68, 0.3)",
+                }}
+              >
+                {health.languageServers.length > 0
+                  ? `${health.languageServers.length} Active`
+                  : "Disconnected"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Reset ── */}

@@ -305,6 +305,7 @@ function ChatView() {
         {isSettingsPage ? (
           <SettingsPanel
             settings={settings}
+            health={health ?? undefined}
             onUpdate={updateSettings}
             onBack={() => navigate(`/${projectSlug ?? "unknown"}`)}
           />

@@ -44,13 +44,15 @@ app.use(
   }),
 );
 
+const PORTA_VERSION = "0.13.0";
+
 // ── Health ──
 
 app.get("/api/health", async (c) => {
   const instances = await discovery.getInstances();
   return c.json({
     status: "ok",
-    proxy: { port: PORT, uptime: process.uptime() },
+    proxy: { port: PORT, uptime: process.uptime(), version: PORTA_VERSION },
     languageServers: instances.map((i) => ({
       pid: i.pid,
       httpsPort: i.httpsPort,
