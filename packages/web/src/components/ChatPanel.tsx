@@ -40,7 +40,13 @@ import {
   IconAlertTriangle,
   IconChevron,
 } from "./Icons";
-import type { AskQuestionEntry, ChatMessage } from "../types";
+import type {
+  AskQuestionEntry,
+  ChatMessage,
+  ClientSettings,
+  TrajectoryStep,
+  ChatSettings,
+} from "../types";
 
 interface Props {
   cascadeId: string;
@@ -71,6 +77,8 @@ interface Props {
   isConversationRunning?: boolean;
   browserNotificationsEnabled?: boolean;
   conversationTitle?: string;
+  chatSettings?: ChatSettings;
+  onAlwaysAllowExecutable?: (executable: string) => Promise<void>;
   /** Called when the WS reports the agent went idle — triggers sidebar refresh. */
   onSidebarRefresh?: () => void;
 }
@@ -241,6 +249,8 @@ function SystemMessage({
   onFilePermission,
   onCommandAction,
   onAskQuestion,
+  chatSettings,
+  onAlwaysAllowExecutable,
 }: {
   msg: ChatMessage;
   onFilePermission: (
@@ -261,6 +271,8 @@ function SystemMessage({
     responses: AskQuestionEntry[],
     cancelled?: boolean,
   ) => Promise<void>;
+  chatSettings?: ChatSettings;
+  onAlwaysAllowExecutable?: (executable: string) => Promise<void>;
 }) {
   const renderedContent = useMemo(
     () => renderMarkdown(msg.content ?? ""),
@@ -302,7 +314,12 @@ function SystemMessage({
     if (msg.type === "CORTEX_STEP_TYPE_RUN_COMMAND") {
       return (
         <div className="message system">
-          <CommandCard step={msg.step} onCommandAction={onCommandAction} />
+          <CommandCard
+            step={msg.step}
+            onCommandAction={onCommandAction}
+            chatSettings={chatSettings}
+            onAlwaysAllowExecutable={onAlwaysAllowExecutable}
+          />
         </div>
       );
     }
@@ -547,6 +564,8 @@ export function ChatPanel({
   isConversationRunning = false,
   browserNotificationsEnabled = false,
   conversationTitle,
+  chatSettings,
+  onAlwaysAllowExecutable,
   onSidebarRefresh,
 }: Props) {
   const {
@@ -849,6 +868,8 @@ export function ChatPanel({
                   onFilePermission={onFilePermission}
                   onCommandAction={onCommandAction}
                   onAskQuestion={onAskQuestion}
+                  chatSettings={chatSettings}
+                  onAlwaysAllowExecutable={onAlwaysAllowExecutable}
                 />
               </Fragment>
             );

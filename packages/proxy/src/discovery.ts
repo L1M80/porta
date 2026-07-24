@@ -412,7 +412,7 @@ export class LSDiscovery {
     const now = Date.now();
     const cacheFresh =
       !forceRefresh &&
-      this.instances.length > 0 &&
+      this.lastDiscovery > 0 &&
       now - this.lastDiscovery <= this.ttlMs;
 
     if (cacheFresh) {

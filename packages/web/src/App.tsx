@@ -12,6 +12,7 @@ import { ChatHeader } from "./components/ChatHeader";
 import { ChatPanel } from "./components/ChatPanel";
 import { ChatInput } from "./components/ChatInput";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { ChatSettingsModal } from "./components/ChatSettingsModal";
 import { WorkspaceSelector } from "./components/WorkspaceSelector";
 import { IconFolder } from "./components/Icons";
 import { useConversations } from "./hooks/useConversations";
@@ -22,7 +23,7 @@ import { useChatActions } from "./hooks/useChatActions";
 import { useClientSettings } from "./hooks/useClientSettings";
 import { api } from "./api/client";
 import { isUnconfirmedOptimisticMessage } from "./utils/optimisticMessages";
-import type { AskQuestionEntry, HealthResponse, MediaAttachment } from "./types";
+import type { AskQuestionEntry, HealthResponse, MediaAttachment, ChatSettings } from "./types";
 import type { PlannerType } from "./components/ChatInput";
 
 export default function App() {
@@ -90,6 +91,51 @@ function ChatView() {
   const activeConv = conversations.find((c) => c.id === activeId);
   const isRunning = activeConv?.summary.status === "CASCADE_RUN_STATUS_RUNNING";
   const connected = !!health && health.languageServers.length > 0;
+
+  // ── Per-Chat Settings State ──
+  const [chatSettings, setChatSettings] = useState<ChatSettings>({
+    autoApprovedExecutables: [],
+    autoApproveAllCommands: false,
+  });
+  const [chatSettingsModalOpen, setChatSettingsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!activeId) {
+      setChatSettings({ autoApprovedExecutables: [], autoApproveAllCommands: false });
+      return;
+    }
+    api
+      .getChatSettings(activeId)
+      .then(setChatSettings)
+      .catch(() =>
+        setChatSettings({ autoApprovedExecutables: [], autoApproveAllCommands: false }),
+      );
+  }, [activeId]);
+
+  const handleUpdateChatSettings = useCallback(
+    async (patch: Partial<ChatSettings>) => {
+      if (!activeId) return;
+      const updated = await api.updateChatSettings(activeId, patch);
+      setChatSettings(updated);
+    },
+    [activeId],
+  );
+
+  const handleAlwaysAllowExecutable = useCallback(
+    async (exe: string) => {
+      if (!activeId) return;
+      const current = chatSettings.autoApprovedExecutables ?? [];
+      const normalized = exe.toLowerCase().trim();
+      if (!current.includes(normalized)) {
+        const updatedExecutables = [...current, normalized];
+        const updated = await api.updateChatSettings(activeId, {
+          autoApprovedExecutables: updatedExecutables,
+        });
+        setChatSettings(updated);
+      }
+    },
+    [activeId, chatSettings],
+  );
 
   const {
     optimisticMessages,
@@ -301,6 +347,8 @@ function ChatView() {
           projectName={projectSlug ?? undefined}
           cascadeId={activeId ?? undefined}
           onMenuToggle={() => setSidebarOpen(true)}
+          chatSettings={chatSettings}
+          onOpenChatSettings={() => setChatSettingsModalOpen(true)}
         />
         {isSettingsPage ? (
           <SettingsPanel
@@ -325,6 +373,8 @@ function ChatView() {
             isConversationRunning={isRunning}
             browserNotificationsEnabled={settings.browserNotificationsEnabled}
             conversationTitle={headerTitle}
+            chatSettings={chatSettings}
+            onAlwaysAllowExecutable={handleAlwaysAllowExecutable}
             onSidebarRefresh={refresh}
           />
         ) : (
@@ -431,6 +481,16 @@ function ChatView() {
           />
         )}
       </div>
+      {activeId && (
+        <ChatSettingsModal
+          isOpen={chatSettingsModalOpen}
+          onClose={() => setChatSettingsModalOpen(false)}
+          cascadeId={activeId}
+          chatTitle={headerTitle}
+          settings={chatSettings}
+          onUpdateSettings={handleUpdateChatSettings}
+        />
+      )}
     </div>
   );
 }

@@ -15,7 +15,9 @@ import type {
   AskQuestionRequest,
   TrajectoryStep,
   FilePermissionRequest,
+  ChatSettings,
 } from "../types";
+import { extractExecutable } from "../utils/extractExecutable";
 
 /** Extract file basename from a URI or path */
 function basename(uriOrPath: string): string {
@@ -403,9 +405,16 @@ interface CommandCardProps {
     stepIndex: number,
     approved: boolean,
   ) => Promise<void>;
+  chatSettings?: ChatSettings;
+  onAlwaysAllowExecutable?: (executable: string) => Promise<void>;
 }
 
-export function CommandCard({ step, onCommandAction }: CommandCardProps) {
+export function CommandCard({
+  step,
+  onCommandAction,
+  chatSettings,
+  onAlwaysAllowExecutable,
+}: CommandCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [responded, setResponded] = useState(false);
   const cmd = step.runCommand;
@@ -424,6 +433,12 @@ export function CommandCard({ step, onCommandAction }: CommandCardProps) {
     step.metadata?.sourceTrajectoryStepInfo?.trajectoryId ?? "";
   const stepIndex = step.metadata?.sourceTrajectoryStepInfo?.stepIndex ?? 0;
 
+  const exe = extractExecutable(command);
+  const isExeAutoAllowed =
+    !!exe &&
+    !!chatSettings?.autoApprovedExecutables &&
+    chatSettings.autoApprovedExecutables.includes(exe);
+
   const statusClass = isWaiting
     ? "cmd-wait"
     : exitCode === undefined
@@ -439,6 +454,17 @@ export function CommandCard({ step, onCommandAction }: CommandCardProps) {
       await onCommandAction(trajectoryId, stepIndex, approved);
     } catch {
       // Request failed — restore buttons so user can retry
+      setResponded(false);
+    }
+  };
+
+  const handleAlwaysAllow = async () => {
+    if (!exe || !onAlwaysAllowExecutable || !onCommandAction) return;
+    setResponded(true);
+    try {
+      await onAlwaysAllowExecutable(exe);
+      await onCommandAction(trajectoryId, stepIndex, true);
+    } catch {
       setResponded(false);
     }
   };
@@ -480,6 +506,15 @@ export function CommandCard({ step, onCommandAction }: CommandCardProps) {
             >
               Approve
             </button>
+            {exe && onAlwaysAllowExecutable && !isExeAutoAllowed && (
+              <button
+                className="approve-btn command-action-btn always-allow-btn"
+                onClick={handleAlwaysAllow}
+                title={`Approve and always allow '${exe}' in this chat`}
+              >
+                Always allow "{exe}"
+              </button>
+            )}
           </div>
         </div>
       )}

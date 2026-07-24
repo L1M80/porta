@@ -98,6 +98,40 @@ describe("CommandCard", () => {
     expect(screen.getByText("npm install")).toBeInTheDocument();
   });
 
+  it("renders Always allow button when onAlwaysAllowExecutable is provided", async () => {
+    const onAction = vi.fn().mockResolvedValue(undefined);
+    const onAlwaysAllow = vi.fn().mockResolvedValue(undefined);
+    render(
+      <CommandCard
+        step={waitingStep()}
+        onCommandAction={onAction}
+        onAlwaysAllowExecutable={onAlwaysAllow}
+      />,
+    );
+
+    const alwaysAllowBtn = screen.getByText('Always allow "npm"');
+    expect(alwaysAllowBtn).toBeInTheDocument();
+
+    await userEvent.click(alwaysAllowBtn);
+    expect(onAlwaysAllow).toHaveBeenCalledWith("npm");
+    expect(onAction).toHaveBeenCalledWith("traj-1", 7, true);
+  });
+
+  it("hides Always allow button if executable is already auto-approved in chatSettings", () => {
+    const onAction = vi.fn().mockResolvedValue(undefined);
+    const onAlwaysAllow = vi.fn().mockResolvedValue(undefined);
+    render(
+      <CommandCard
+        step={waitingStep()}
+        onCommandAction={onAction}
+        onAlwaysAllowExecutable={onAlwaysAllow}
+        chatSettings={{ autoApprovedExecutables: ["npm"], autoApproveAllCommands: false }}
+      />,
+    );
+
+    expect(screen.queryByText('Always allow "npm"')).not.toBeInTheDocument();
+  });
+
   it("shows commandLine (not proposedCommandLine) when not waiting", () => {
     const step: TrajectoryStep = {
       type: "CORTEX_STEP_TYPE_RUN_COMMAND",

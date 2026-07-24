@@ -245,5 +245,7 @@ export const IconGear = ({ size = 16, className }: IconProps) =>
     "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
   ]);
 
+export const IconSettings = IconGear;
+
 export const IconChevronLeft = ({ size = 16, className }: IconProps) =>
   d(size, className, "m15 18-6-6 6-6");

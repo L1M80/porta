@@ -289,3 +289,11 @@ export interface ClientSettings {
   /** Enables browser notifications for run completion and approval requests. */
   browserNotificationsEnabled: boolean;
 }
+
+// ── Per-Chat Settings ──
+
+export interface ChatSettings {
+  autoApprovedExecutables: string[];
+  autoApproveAllCommands: boolean;
+}
+

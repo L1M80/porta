@@ -132,6 +132,23 @@ export const api = {
       }),
     }),
 
+  getChatSettings: (cascadeId: string) =>
+    request<import("../types").ChatSettings>(
+      `/api/conversations/${cascadeId}/settings`,
+    ),
+
+  updateChatSettings: (
+    cascadeId: string,
+    patch: Partial<import("../types").ChatSettings>,
+  ) =>
+    request<import("../types").ChatSettings>(
+      `/api/conversations/${cascadeId}/settings`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      },
+    ),
+
   askQuestion: (
     cascadeId: string,
     trajectoryId: string,

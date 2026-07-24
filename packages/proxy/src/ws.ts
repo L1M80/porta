@@ -31,6 +31,7 @@ import {
   placeholderStep,
 } from "./step-recovery.js";
 import { conversationSignals } from "./signals.js";
+import { shouldAutoApproveCommand } from "./chat-settings.js";
 
 /** Active polling interval (ms). */
 const ACTIVE_INTERVAL = 200;
@@ -202,6 +203,7 @@ export function setupWebSocket(
       let emptyCount = 0;
       let minActiveUntil = 0;
       let peerAlive = true;
+      const autoApprovedSteps = new Set<string>();
 
       // ── Helpers ──
 
@@ -314,6 +316,46 @@ export function setupWebSocket(
             fetchOffset,
             newSteps,
           );
+
+          // Check for waiting command steps to auto-approve based on chat settings
+          for (const rawStep of annotatedSteps) {
+            const step = rawStep as {
+              status?: string;
+              runCommand?: { proposedCommandLine?: string; commandLine?: string; command?: string };
+              metadata?: { sourceTrajectoryStepInfo?: { trajectoryId?: string; stepIndex?: number } };
+            };
+            if (step?.status === "CORTEX_STEP_STATUS_WAITING" && step.runCommand) {
+              const cmd = step.runCommand;
+              const commandLine = cmd.proposedCommandLine ?? cmd.commandLine ?? cmd.command ?? "";
+              const trajectoryId = step.metadata?.sourceTrajectoryStepInfo?.trajectoryId;
+              const stepIndex = step.metadata?.sourceTrajectoryStepInfo?.stepIndex;
+
+              if (trajectoryId && stepIndex !== undefined) {
+                const key = `${trajectoryId}:${stepIndex}`;
+                if (!autoApprovedSteps.has(key)) {
+                  const { autoApprove, executable } = shouldAutoApproveCommand(cascadeId, commandLine);
+                  if (autoApprove) {
+                    autoApprovedSteps.add(key);
+                    console.log(`[ws:${shortId}] Auto-approving command step ${stepIndex} (${executable}): ${commandLine}`);
+                    void rpcForConversation("HandleCascadeUserInteraction", cascadeId, {
+                      cascadeId,
+                      interaction: {
+                        trajectoryId,
+                        stepIndex: Number(stepIndex),
+                        permission: { allow: true },
+                      },
+                    })
+                      .then(() => {
+                        conversationSignals.emit("activate", cascadeId);
+                      })
+                      .catch((err) => {
+                        console.error(`[ws:${shortId}] Auto-approval failed:`, err);
+                      });
+                  }
+                }
+              }
+            }
+          }
 
           const newEnd = fetchOffset + newSteps.length;
           const stepCountGrew = newEnd > lastStepCount;

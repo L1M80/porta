@@ -25,6 +25,7 @@ import {
 } from "./exposure.js";
 import { getAllowedOrigins, resolveCorsOrigin } from "./origins.js";
 import { setupWebSocket } from "./ws.js";
+import { loadSettingsFromDisk } from "./chat-settings.js";
 
 const PORT = parseInt(process.env.PORTA_PORT ?? "3170", 10);
 const HOST = resolveProxyHost();
@@ -71,6 +72,9 @@ registerFileRoutes(app);
 registerSearchRoutes(app);
 registerRpcPassthroughRoutes(app);
 registerGithubRoutes(app);
+
+// Load per-chat settings from disk
+void loadSettingsFromDisk();
 
 // Start background GitHub monitor polling
 githubMonitor.startPolling(30_000);

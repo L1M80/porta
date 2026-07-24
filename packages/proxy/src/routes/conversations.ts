@@ -35,6 +35,7 @@ import {
 import { messageTracker } from "../message-tracker.js";
 import { conversationSignals } from "../signals.js";
 import { githubMonitor, parseGitHubPRUrls } from "../github-monitor.js";
+import { getChatSettings, updateChatSettings } from "../chat-settings.js";
 
 const MAX_STEPS_LIMIT = 500;
 const MAX_TOTAL_CONVERSATIONS = 100;
@@ -845,6 +846,25 @@ export function registerConversationRoutes(app: Hono): void {
       });
     } catch (err) {
       return handleRPCError(c, err);
+    }
+  });
+
+  // ── Per-Chat Settings ──
+
+  app.get("/api/conversations/:id/settings", (c) => {
+    const id = c.req.param("id");
+    const settings = getChatSettings(id);
+    return c.json(settings);
+  });
+
+  app.patch("/api/conversations/:id/settings", async (c) => {
+    const id = c.req.param("id");
+    try {
+      const body = await c.req.json();
+      const updated = await updateChatSettings(id, body);
+      return c.json(updated);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
     }
   });
 }
