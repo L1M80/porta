@@ -21,6 +21,7 @@ function uriFromSlug(
 interface ConversationEntry {
   id: string;
   summary: {
+    lastModifiedTime?: string;
     workspaces?: {
       workspaceFolderAbsoluteUri?: string;
       repository?: { computedName?: string };
@@ -47,14 +48,24 @@ export function useWorkspaces(
   const wsInitialized = useRef(false);
 
   useEffect(() => {
-    // Collect from conversations
+    // Collect from conversations and track their last modified time
     const fromConvs = new Map<string, string>();
+    const workspaceRecency = new Map<string, number>();
+
     for (const conv of conversations) {
       const ws = conv.summary.workspaces?.[0];
       if (!ws?.workspaceFolderAbsoluteUri) continue;
       const uri = ws.workspaceFolderAbsoluteUri;
       const name = workspaceNameFromMetadata(ws);
       fromConvs.set(uri, name);
+
+      const time = conv.summary.lastModifiedTime
+        ? new Date(conv.summary.lastModifiedTime).getTime()
+        : 0;
+      const existing = workspaceRecency.get(uri) ?? 0;
+      if (time > existing) {
+        workspaceRecency.set(uri, time);
+      }
     }
 
     // Collect from LS API
@@ -65,17 +76,38 @@ export function useWorkspaces(
           uri: w.workspaceUri,
           name: workspaceNameFromUri(w.workspaceUri),
         }));
+
+        // Assign a high score (current time) to active workspaces that don't have past conversations
+        // so that they stay at the very top of the list.
+        for (const w of fromApi) {
+          if (!workspaceRecency.has(w.uri)) {
+            workspaceRecency.set(w.uri, Date.now());
+          }
+        }
+
         const merged = new Map<string, string>();
         for (const w of fromApi) merged.set(w.uri, w.name);
         for (const [uri, name] of fromConvs) {
           if (!merged.has(uri)) merged.set(uri, name);
         }
+
         const list = Array.from(merged, ([uri, name]) => ({ uri, name }));
+        list.sort((a, b) => {
+          const timeA = workspaceRecency.get(a.uri) ?? 0;
+          const timeB = workspaceRecency.get(b.uri) ?? 0;
+          return timeB - timeA;
+        });
+
         setWorkspaces(list);
         wsInitialized.current = true;
       })
       .catch(() => {
         const list = Array.from(fromConvs, ([uri, name]) => ({ uri, name }));
+        list.sort((a, b) => {
+          const timeA = workspaceRecency.get(a.uri) ?? 0;
+          const timeB = workspaceRecency.get(b.uri) ?? 0;
+          return timeB - timeA;
+        });
         setWorkspaces(list);
         wsInitialized.current = true;
       });

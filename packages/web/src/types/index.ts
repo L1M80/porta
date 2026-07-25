@@ -8,6 +8,7 @@ export interface ConversationSummary {
   workspaces: Workspace[];
   lastUserInputTime?: string;
   lastUserInputStepIndex?: number;
+  projectName?: string;
 }
 
 export interface MediaAttachment {
@@ -56,6 +57,9 @@ export interface FilePermissionRequest {
   absolutePathUri: string;
   blockReason?: string;
   isDirectory?: boolean;
+  action?: string;
+  /** Response field expected by HandleCascadeUserInteraction. */
+  responseKind?: "filePermission" | "permission";
 }
 
 // ── Ask Question ──
@@ -85,6 +89,12 @@ export interface AskQuestionInteraction {
 
 export interface RequestedInteractionData {
   askQuestion?: AskQuestionRequest;
+  permission?: {
+    resource?: {
+      action?: string;
+      target?: string;
+    };
+  };
 }
 
 export interface CompletedInteractionData {

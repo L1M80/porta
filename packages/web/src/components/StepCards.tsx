@@ -59,15 +59,22 @@ interface FilePermissionCardProps {
     scope: number,
     absolutePathUri: string,
   ) => void;
+  onGenericPermission?: (
+    trajectoryId: string,
+    stepIndex: number,
+    allow: boolean,
+  ) => Promise<void>;
 }
 
 export function FilePermissionCard({
   step,
   permissionRequest,
   onFilePermission,
+  onGenericPermission,
 }: FilePermissionCardProps) {
   const [responded, setResponded] = useState(false);
   const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+  const usesGenericPermission = permissionRequest.responseKind === "permission";
 
   const trajectoryId =
     step.metadata?.sourceTrajectoryStepInfo?.trajectoryId ?? "";
@@ -79,8 +86,14 @@ export function FilePermissionCard({
 
   const handleResponse = (allow: boolean, scope: number) => {
     setResponded(true);
+    if (usesGenericPermission) {
+      void onGenericPermission?.(trajectoryId, stepIndex, allow);
+      return;
+    }
     onFilePermission(trajectoryId, stepIndex, allow, scope, path);
   };
+
+  const canRespond = !usesGenericPermission || !!onGenericPermission;
 
   return (
     <div
@@ -91,7 +104,11 @@ export function FilePermissionCard({
           <IconLock size={12} />
         </span>
         <span className="step-card-desc">
-          File access requested:{" "}
+          {permissionRequest.action === "write_file"
+            ? "Allow write access to this path: "
+            : permissionRequest.action === "read_file"
+              ? "Allow read access to this path: "
+              : "File access requested: "}
           <code className="step-card-file">{displayPath}</code>
           {isDir ? " (directory)" : ""}
         </span>
@@ -104,7 +121,7 @@ export function FilePermissionCard({
             .toLowerCase()}
         </div>
       )}
-      {isWaiting && !responded && (
+      {isWaiting && !responded && canRespond && (
         <div className="step-card-actions file-permission-actions">
           <button
             className="approve-btn file-permission-btn deny"
@@ -112,18 +129,31 @@ export function FilePermissionCard({
           >
             Deny
           </button>
-          <button
-            className="approve-btn file-permission-btn allow-once"
-            onClick={() => handleResponse(true, PERMISSION_SCOPE_ONCE)}
-          >
-            Allow Once
-          </button>
-          <button
-            className="approve-btn file-permission-btn allow-conversation"
-            onClick={() => handleResponse(true, PERMISSION_SCOPE_CONVERSATION)}
-          >
-            Allow This Conversation
-          </button>
+          {usesGenericPermission ? (
+            <button
+              className="approve-btn file-permission-btn allow-conversation"
+              onClick={() => handleResponse(true, 0)}
+            >
+              Allow
+            </button>
+          ) : (
+            <>
+              <button
+                className="approve-btn file-permission-btn allow-once"
+                onClick={() => handleResponse(true, PERMISSION_SCOPE_ONCE)}
+              >
+                Allow Once
+              </button>
+              <button
+                className="approve-btn file-permission-btn allow-conversation"
+                onClick={() =>
+                  handleResponse(true, PERMISSION_SCOPE_CONVERSATION)
+                }
+              >
+                Allow This Conversation
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
