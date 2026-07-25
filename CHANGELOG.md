@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-26
+
+### Added
+
+- An optional Windows deployment recipe can now keep Porta and a Cloudflare
+  Tunnel available with a self-healing scheduled watchdog, ownership-tracked
+  process lifecycle, validated configuration, and a safe stop/uninstall path.
+  (#110)
+
+### Security
+
+- Public Vite deployments can now require token authentication for every HTTP,
+  API, and WebSocket request. The access gate validates deployment settings and
+  fails closed for missing or malformed credentials. (#110)
+- Updated `brace-expansion`, `@hono/node-server`, Hono, and `fast-uri` to
+  versions containing upstream security fixes. (#111, #114)
+
 ## [0.13.0] - 2026-07-13
 
 ### Added
@@ -270,7 +287,8 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/L1M80/porta/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/L1M80/porta/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/L1M80/porta/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/L1M80/porta/compare/v0.10.0...v0.11.0
