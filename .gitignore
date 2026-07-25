@@ -32,6 +32,9 @@ npm-debug.log*
 # Cloudflare
 .wrangler/
 
+# Tooling output
+graphify-out/
+
 # Secrets
 .oauth-token
 .agent

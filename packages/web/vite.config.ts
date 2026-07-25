@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import { normalizeBasePath } from "./src/basePath.shared";
+import { accessGate } from "./vite-access-gate";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -21,9 +22,30 @@ export default defineConfig(({ mode }) => {
   const rawBasePath = env.PORTA_BASE_PATH || process.env.PORTA_BASE_PATH || "/";
   const basePath = normalizeBasePath(rawBasePath);
   const allowedHostsRaw = env.PORTA_ALLOWED_HOSTS || process.env.PORTA_ALLOWED_HOSTS;
-  const allowedHosts = allowedHostsRaw === "true" || allowedHostsRaw === "all" || allowedHostsRaw === "*"
+  const allowedHostsValue = allowedHostsRaw?.trim();
+  const allowedHosts = allowedHostsValue === "true" || allowedHostsValue === "all" || allowedHostsValue === "*"
     ? true
-    : (allowedHostsRaw ? allowedHostsRaw.split(",") : undefined);
+    : (allowedHostsValue
+      ? allowedHostsValue.split(",").map((host) => host.trim()).filter(Boolean)
+      : undefined);
+
+  // Access gate: when PORTA_REQUIRE_AUTH is set, every request (page, /api, WebSocket)
+  // must carry a valid PORTA_ACCESS_TOKEN. Essential when the dev server is exposed
+  // publicly via a tunnel. Fail-closed: enabled but no token => everything denied.
+  const requireAuthRaw = (
+    env.PORTA_REQUIRE_AUTH || process.env.PORTA_REQUIRE_AUTH || ""
+  ).trim();
+  const requireAuth = /^(1|true|yes|on)$/i.test(requireAuthRaw);
+  if (
+    requireAuthRaw &&
+    !requireAuth &&
+    !/^(0|false|no|off)$/i.test(requireAuthRaw)
+  ) {
+    throw new Error(
+      "PORTA_REQUIRE_AUTH must be one of 1/true/yes/on or 0/false/no/off.",
+    );
+  }
+  const accessToken = env.PORTA_ACCESS_TOKEN || process.env.PORTA_ACCESS_TOKEN || "";
 
   return {
     base: basePath,
@@ -31,6 +53,8 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.PORTA_BASE_PATH": JSON.stringify(basePath),
     },
     plugins: [
+      // Must be first so it gates requests before any other middleware.
+      accessGate({ enabled: requireAuth, token: accessToken }),
       react(),
       VitePWA({
         registerType: "autoUpdate",
@@ -55,6 +79,9 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.PORTA_HOST || process.env.PORTA_HOST || "127.0.0.1",
       port: Number(env.PORTA_WEB_PORT || process.env.PORTA_WEB_PORT || 3070),
+      // A tunnel and its watchdog target one fixed origin port. Do not silently
+      // move Vite to the next port if that origin is already occupied.
+      strictPort: true,
       ...(allowedHosts !== undefined ? { allowedHosts } : {}),
       proxy: {
         "/api": {
