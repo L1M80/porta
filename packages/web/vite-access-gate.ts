@@ -37,7 +37,13 @@ function readCookie(header: string | undefined, name: string): string | null {
     const eq = part.indexOf("=");
     if (eq < 0) continue;
     if (part.slice(0, eq).trim() === name) {
-      return decodeURIComponent(part.slice(eq + 1).trim());
+      try {
+        return decodeURIComponent(part.slice(eq + 1).trim());
+      } catch {
+        // A cookie is untrusted input. Invalid percent-encoding must fail closed
+        // instead of escaping the HTTP middleware or WebSocket upgrade handler.
+        return null;
+      }
     }
   }
   return null;
@@ -104,20 +110,37 @@ export function accessGate(opts: { enabled: boolean; token: string }): Plugin {
       });
 
       // --- WebSocket upgrades (/api streaming, Vite HMR) ---
-      // Run before Vite's own upgrade handler so unauthorized sockets never reach it.
+      // EventEmitter listeners cannot stop propagation. Guard emit itself so an
+      // unauthorized upgrade is rejected before Vite or its proxy sees the request.
       const httpServer = server.httpServer;
       if (httpServer) {
-        httpServer.prependListener(
-          "upgrade",
-          (req: IncomingMessage, socket: Duplex) => {
+        const originalEmit = httpServer.emit;
+        const guardedEmit = function (
+          this: typeof httpServer,
+          eventName: string | symbol,
+          ...args: unknown[]
+        ) {
+          if (eventName === "upgrade") {
+            const req = args[0] as IncomingMessage;
+            const socket = args[1] as Duplex;
             if (!isAuthorized(req, opts.token)) {
               socket.write(
                 "HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n",
               );
               socket.destroy();
+              return true;
             }
-          },
-        );
+          }
+
+          return Reflect.apply(originalEmit, this, [eventName, ...args]);
+        } as typeof httpServer.emit;
+
+        httpServer.emit = guardedEmit;
+        httpServer.once("close", () => {
+          if (httpServer.emit === guardedEmit) {
+            httpServer.emit = originalEmit;
+          }
+        });
       }
     },
   };
