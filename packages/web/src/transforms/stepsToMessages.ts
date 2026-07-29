@@ -46,6 +46,26 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
       continue;
     }
 
+    const toolName = step.metadata?.toolCall?.name ?? "";
+    const isSubagent =
+      toolName === "invoke_subagent" ||
+      toolName === "define_subagent" ||
+      toolName === "manage_subagents" ||
+      toolName === "send_message" ||
+      type === "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" ||
+      type === "CORTEX_STEP_TYPE_SUBAGENT";
+
+    if (isSubagent) {
+      messages.push({
+        role: "system",
+        content: "",
+        stepIndex: i,
+        type: "CORTEX_STEP_TYPE_SUBAGENT",
+        step,
+      });
+      continue;
+    }
+
     if (type === "CORTEX_STEP_TYPE_USER_INPUT" && step.userInput?.items) {
       const text = textFromItems(step.userInput.items);
       const media = step.userInput.media;
