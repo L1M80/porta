@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-08-03
+
+### Added
+
+- Antigravity subagent activity is now shown as rich status cards with agent
+  roles, types, prompts, tool actions, and execution states. (#122)
+
+### Fixed
+
+- Subagent cards now support both current native `invokeSubagent` payloads and
+  older captures where invocation arguments are stored on the preceding planner
+  response. (#124)
+- Multiple invoked subagents are all displayed, and `define_subagent`,
+  `send_message`, and `manage_subagents` are rendered with tool-specific
+  details. (#124)
+- Pending, running, completed, canceled, interrupted, invalid, and failed
+  subagent states are now visually distinguishable. (#124)
+
+### Security
+
+- Updated `brace-expansion` to a version containing upstream regular-expression
+  denial-of-service fixes. (#118)
+
 ## [0.14.0] - 2026-07-26
 
 ### Added
