@@ -455,5 +455,188 @@ describe("stepsToMessages", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0].type).toBe("CORTEX_STEP_TYPE_SUBAGENT");
     expect(msgs[0].step).toBe(step);
+    expect(msgs[0].subagent).toMatchObject({
+      kind: "invoke",
+      title: "Subagent Invoked",
+      action: "Invoking research subagent",
+      items: [
+        {
+          role: "Config Auditor",
+          typeName: "research",
+          details: [
+            { label: "Instructions", text: "Audit all config files" },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("correlates a payloadless native marker with captured planner arguments", () => {
+    const marker: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_INVOKE_SUBAGENT",
+      status: "CORTEX_STEP_STATUS_DONE",
+    };
+    const steps: TrajectoryStep[] = [
+      {
+        type: "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+        plannerResponse: {
+          toolCalls: [
+            {
+              name: "invoke_subagent",
+              argumentsJson: JSON.stringify({
+                Subagents: [
+                  {
+                    Role: "Integration Reviewer",
+                    TypeName: "general-purpose",
+                    Prompt: "Review API integration",
+                  },
+                  {
+                    Role: "Security Reviewer",
+                    TypeName: "research",
+                    Prompt: "Review trust boundaries",
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      },
+      marker,
+    ];
+
+    const msgs = stepsToMessages(steps);
+
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].step).toBe(marker);
+    expect(msgs[0].subagent?.title).toBe("2 Subagents Invoked");
+    expect(msgs[0].subagent?.items).toHaveLength(2);
+    expect(msgs[0].subagent?.items.map((item) => item.role)).toEqual([
+      "Integration Reviewer",
+      "Security Reviewer",
+    ]);
+  });
+
+  it("does not correlate a stale tool call across planner turns", () => {
+    const steps: TrajectoryStep[] = [
+      {
+        type: "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+        plannerResponse: {
+          toolCalls: [
+            {
+              name: "invoke_subagent",
+              argumentsJson: JSON.stringify({
+                Subagents: [{ Role: "Stale Reviewer" }],
+              }),
+            },
+          ],
+        },
+      },
+      {
+        type: "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+        plannerResponse: {},
+      },
+      {
+        type: "CORTEX_STEP_TYPE_INVOKE_SUBAGENT",
+      },
+    ];
+
+    const [msg] = stepsToMessages(steps);
+
+    expect(msg.subagent?.items[0].role).toBe("Subagent");
+  });
+
+  it("uses the current native invokeSubagent payload and metadata", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_INVOKE_SUBAGENT",
+      status: "CORTEX_STEP_STATUS_RUNNING",
+      metadata: {
+        toolSummary: "Review team",
+        toolAction: "Running two reviews",
+      },
+      invokeSubagent: {
+        subagents: [
+          {
+            role: "Bug Hunter",
+            typeName: "general-purpose",
+            initialPrompt: "Find bugs",
+            modelTier: "MODEL_TIER_PRO",
+          },
+          {
+            role: "Security Auditor",
+            typeName: "research",
+            initialPrompt: "Find vulnerabilities",
+          },
+        ],
+      },
+    };
+
+    const [msg] = stepsToMessages([step]);
+
+    expect(msg.subagent).toMatchObject({
+      kind: "invoke",
+      title: "Review team",
+      action: "Running two reviews",
+    });
+    expect(msg.subagent?.items).toHaveLength(2);
+    expect(msg.subagent?.items[0]).toMatchObject({
+      role: "Bug Hunter",
+      typeName: "general-purpose",
+      model: "MODEL_TIER_PRO",
+    });
+  });
+
+  it.each([
+    {
+      name: "define_subagent",
+      args: {
+        name: "security-reviewer",
+        description: "Reviews trust boundaries",
+        system_prompt: "Inspect untrusted input",
+      },
+      kind: "define",
+      title: "Define security-reviewer",
+      role: "security-reviewer",
+    },
+    {
+      name: "send_message",
+      args: { Recipient: "conversation-123", Message: "Check the parser" },
+      kind: "message",
+      title: "Message to conversation-123",
+      role: "conversation-123",
+    },
+    {
+      name: "manage_subagents",
+      args: { Action: "kill", ConversationIds: ["one", "two"] },
+      kind: "manage",
+      title: "Stop Subagents",
+      role: "kill",
+    },
+  ])("normalizes $name instead of labeling it as an invocation", (fixture) => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_TOOL_CALL",
+      metadata: {
+        toolCall: {
+          name: fixture.name,
+          argumentsJson: JSON.stringify(fixture.args),
+        },
+      },
+    };
+
+    const [msg] = stepsToMessages([step]);
+
+    expect(msg.subagent).toMatchObject({
+      kind: fixture.kind,
+      title: fixture.title,
+      items: [{ role: fixture.role }],
+    });
+  });
+
+  it("does not treat inherited object properties as subagent tool names", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_TOOL_CALL",
+      metadata: { toolCall: { name: "toString" } },
+    };
+
+    expect(stepsToMessages([step])).toEqual([]);
   });
 });

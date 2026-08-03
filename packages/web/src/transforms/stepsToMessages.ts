@@ -1,5 +1,9 @@
-import type { ChatMessage, TrajectoryStep } from "../types";
+import type { ChatMessage, ToolCallData, TrajectoryStep } from "../types";
 import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
+import {
+  isSubagentToolName,
+  subagentDataFromStep,
+} from "../utils/subagents";
 
 function textFromItems(items?: { text?: string }[]): string {
   if (!items) return "";
@@ -12,10 +16,24 @@ function textFromItems(items?: { text?: string }[]): string {
 /** Extract displayable messages from raw trajectory steps */
 export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
   const messages: ChatMessage[] = [];
+  const pendingInvokeToolCalls: ToolCallData[] = [];
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     const type = step.type;
+
+    // Older AG trajectories put invoke_subagent arguments on the planner
+    // response, followed by a payloadless native invocation marker.
+    if (type === "CORTEX_STEP_TYPE_PLANNER_RESPONSE") {
+      // Do not let an incomplete/truncated older invocation become the
+      // fallback for a later planner turn.
+      pendingInvokeToolCalls.length = 0;
+      for (const toolCall of step.plannerResponse?.toolCalls ?? []) {
+        if (toolCall.name === "invoke_subagent") {
+          pendingInvokeToolCalls.push(toolCall);
+        }
+      }
+    }
 
     // File permission request: emit as a dedicated message type
     const fpr = getFilePermissionRequest(step);
@@ -46,22 +64,27 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
       continue;
     }
 
-    const toolName = step.metadata?.toolCall?.name ?? "";
-    const isSubagent =
-      toolName === "invoke_subagent" ||
-      toolName === "define_subagent" ||
-      toolName === "manage_subagents" ||
-      toolName === "send_message" ||
+    const toolName = step.metadata?.toolCall?.name;
+    const isNativeSubagent =
       type === "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" ||
       type === "CORTEX_STEP_TYPE_SUBAGENT";
+    const isSubagent = isSubagentToolName(toolName) || isNativeSubagent;
 
     if (isSubagent) {
+      const fallbackToolCall = isNativeSubagent
+        ? pendingInvokeToolCalls.shift()
+        : undefined;
+      if (!isNativeSubagent && toolName === "invoke_subagent") {
+        pendingInvokeToolCalls.shift();
+      }
+      const subagent = subagentDataFromStep(step, fallbackToolCall);
       messages.push({
         role: "system",
         content: "",
         stepIndex: i,
         type: "CORTEX_STEP_TYPE_SUBAGENT",
         step,
+        subagent,
       });
       continue;
     }
