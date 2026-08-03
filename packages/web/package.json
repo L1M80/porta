@@ -33,7 +33,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "happy-dom": "^20.8.9",
-    "jsdom": "^28.1.0",
+    "jsdom": "^30.0.1",
     "serialize-javascript": "^7.0.7",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
