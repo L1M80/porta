@@ -124,6 +124,7 @@ export interface TrajectoryStep {
   metadata?: StepMetadata;
   userInput?: { items: StepItem[]; media?: unknown[] };
   plannerResponse?: PlannerResponseData;
+  invokeSubagent?: InvokeSubagentData;
   runCommand?: RunCommandData;
   codeAction?: CodeActionData;
   commandStatus?: CommandStatusData;
@@ -146,21 +147,52 @@ export interface PlannerResponseData {
   modifiedResponse?: string;
   thinking?: string;
   thinkingDuration?: string;
+  toolCalls?: ToolCallData[];
+}
+
+export interface ToolCallData {
+  id?: string;
+  name?: string;
+  argumentsJson?: string;
 }
 
 export interface StepMetadata {
   createdAt?: string;
   completedAt?: string;
   source?: string;
-  toolCall?: {
-    id?: string;
-    name?: string;
-    argumentsJson?: string;
-  };
+  executionId?: string;
+  toolCall?: ToolCallData;
+  toolSummary?: string;
+  toolAction?: string;
   sourceTrajectoryStepInfo?: {
     trajectoryId?: string;
     stepIndex?: number;
   };
+}
+
+export interface NativeSubagentSpec {
+  typeName?: string;
+  role?: string;
+  initialPrompt?: string;
+  model?: string;
+  modelTier?: string;
+}
+
+export interface SubagentResult {
+  conversationId?: string;
+  logAbsoluteUri?: string;
+  workspaceUris?: string[];
+}
+
+/** Native payload of CORTEX_STEP_TYPE_INVOKE_SUBAGENT. */
+export interface InvokeSubagentData {
+  subagents?: NativeSubagentSpec[];
+  taskMode?: boolean;
+  results?: SubagentResult[];
+  /** Legacy single-subagent fields retained by the AG protocol. */
+  subagentName?: string;
+  prompt?: string;
+  conversationId?: string;
 }
 
 export interface RunCommandData {
@@ -257,6 +289,29 @@ export interface StepItem {
   text?: string;
 }
 
+export type SubagentToolKind = "invoke" | "define" | "manage" | "message";
+
+export interface SubagentDisplayDetail {
+  label: string;
+  text: string;
+}
+
+export interface SubagentDisplayItem {
+  role: string;
+  typeName: string;
+  model?: string;
+  details: SubagentDisplayDetail[];
+}
+
+/** Sanitized, tool-independent data consumed by SubagentCard. */
+export interface SubagentDisplayData {
+  toolName: string;
+  kind: SubagentToolKind;
+  title: string;
+  action?: string;
+  items: SubagentDisplayItem[];
+}
+
 /** Normalized message for display */
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -265,6 +320,8 @@ export interface ChatMessage {
   type: string;
   /** Original step data for rich rendering */
   step?: TrajectoryStep;
+  /** Normalized subagent data for rich rendering */
+  subagent?: SubagentDisplayData;
   /** Media attachments (images/video) */
   media?: unknown[];
   /** Extended thinking / chain-of-thought content */
