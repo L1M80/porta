@@ -26,31 +26,39 @@ export async function ensureStandaloneCore(): Promise<void> {
   try {
     const binaryPath =
       process.env.PORTA_CORE_BINARY_PATH ||
-      join(homedir(), "Antigravity-x64", "resources", "bin", "language_server");
+      "agy";
 
-    const csrfToken = randomUUID();
-    console.log(`[Core Manager] Starting standalone Antigravity core from ${binaryPath} with csrf ${csrfToken}...`);
-
-    coreProcess = spawn(
-      binaryPath,
-      [
-        "--standalone",
-        "--override_ide_name", "antigravity",
-        "--subclient_type", "hub",
-        "--override_ide_version", "2.2.1",
-        "--override_user_agent_name", "antigravity",
-        "--https_server_port", "0",
-        "--csrf_token", csrfToken,
-        "--app_data_dir", "antigravity-cli",
-        "--api_server_url", "https://generativelanguage.googleapis.com",
-        "--cloud_code_endpoint", "https://daily-cloudcode-pa.googleapis.com",
-        "--enable_sidecars",
-      ],
-      {
-        stdio: ["pipe", "ignore", "ignore"],
+    if (binaryPath === "agy" || binaryPath.endsWith("/agy")) {
+      console.log(`[Core Manager] Starting standalone Antigravity CLI via script...`);
+      coreProcess = spawn("script", ["-q", "-c", binaryPath, "/dev/null"], {
+        stdio: "ignore",
         detached: true,
-      }
-    );
+      });
+    } else {
+      const csrfToken = randomUUID();
+      console.log(`[Core Manager] Starting standalone Antigravity core from ${binaryPath} with csrf ${csrfToken}...`);
+
+      coreProcess = spawn(
+        binaryPath,
+        [
+          "--standalone",
+          "--override_ide_name", "antigravity",
+          "--subclient_type", "hub",
+          "--override_ide_version", "2.2.1",
+          "--override_user_agent_name", "antigravity",
+          "--https_server_port", "0",
+          "--csrf_token", csrfToken,
+          "--app_data_dir", "antigravity-cli",
+          "--api_server_url", "https://generativelanguage.googleapis.com",
+          "--cloud_code_endpoint", "https://daily-cloudcode-pa.googleapis.com",
+          "--enable_sidecars",
+        ],
+        {
+          stdio: ["pipe", "ignore", "ignore"],
+          detached: true,
+        }
+      );
+    }
 
     coreProcess.on("error", (err) => {
       console.error(`[Core Manager] Failed to start standalone core:`, err);

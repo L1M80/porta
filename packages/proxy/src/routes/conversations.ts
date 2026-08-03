@@ -559,6 +559,9 @@ export function registerConversationRoutes(app: Hono): void {
           };
         }
 
+        // Emit activate before the RPC to start 200ms polling immediately
+        conversationSignals.emit("activate", id);
+
         const data = await rpcForConversation(
           "SendUserCascadeMessage",
           id,
@@ -572,7 +575,6 @@ export function registerConversationRoutes(app: Hono): void {
             preSendStepCount,
           );
         }
-        conversationSignals.emit("activate", id);
         return c.json(data);
       });
     } catch (err) {

@@ -418,6 +418,10 @@ export class LSDiscovery {
     return instances;
   }
 
+  invalidateCache(): void {
+    this.lastDiscovery = 0;
+  }
+
   async getInstances(forceRefresh = false): Promise<LSInstance[]> {
     const now = Date.now();
     const cacheFresh =
@@ -432,6 +436,7 @@ export class LSDiscovery {
     if (!forceRefresh && this.pendingDiscovery) {
       return this.pendingDiscovery;
     }
+
 
     const generation = ++this.discoveryGeneration;
     const pending = this.discover()

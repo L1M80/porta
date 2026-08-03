@@ -354,6 +354,8 @@ export async function resolveAndCall<T>(
           (err.code === "unavailable" || err.code === "not_found")
         ) {
           conversationInstanceAffinity.delete(cascadeId);
+          discovery.invalidateCache();
+          return resolveAndCall(method, cascadeId, body, undefined, readOnly);
         } else {
           throw err;
         }
@@ -381,6 +383,8 @@ export async function resolveAndCall<T>(
         ) {
           // Affinity LS is dead or lost the conversation — clear stale affinity and re-discover
           conversationAffinity.delete(cascadeId);
+          discovery.invalidateCache();
+          return resolveAndCall(method, cascadeId, body, undefined, readOnly);
         } else {
           // Application error (e.g. invalid model, internal LS error) -> throw immediately
           throw err;
