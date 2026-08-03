@@ -8,14 +8,17 @@ import {
   IconFileText,
   IconLock,
   IconMessageCircle,
+  IconUsers,
 } from "./Icons";
 import type {
   AskQuestionEntry,
   AskQuestionOption,
   AskQuestionRequest,
-  TrajectoryStep,
   FilePermissionRequest,
+  SubagentDisplayData,
+  TrajectoryStep,
 } from "../types";
+import { subagentDataFromStep } from "../utils/subagents";
 
 /** Extract file basename from a URI or path */
 function basename(uriOrPath: string): string {
@@ -589,6 +592,131 @@ export function CodeActionCard({ step }: CodeActionCardProps) {
           </pre>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Subagent Card ──
+
+const ACTIVE_SUBAGENT_STATUSES = new Set([
+  "CORTEX_STEP_STATUS_GENERATING",
+  "CORTEX_STEP_STATUS_QUEUED",
+  "CORTEX_STEP_STATUS_PENDING",
+  "CORTEX_STEP_STATUS_RUNNING",
+  "CORTEX_STEP_STATUS_WAITING",
+]);
+
+const FAILED_SUBAGENT_STATUSES = new Set([
+  "CORTEX_STEP_STATUS_INVALID",
+  "CORTEX_STEP_STATUS_CANCELED",
+  "CORTEX_STEP_STATUS_ERROR",
+  "CORTEX_STEP_STATUS_INTERRUPTED",
+]);
+
+function subagentStatus(status?: string): {
+  label?: string;
+  className: string;
+} {
+  if (!status) return { className: "" };
+  if (status === "CORTEX_STEP_STATUS_DONE") {
+    return { label: "Done", className: "cmd-ok" };
+  }
+  if (FAILED_SUBAGENT_STATUSES.has(status)) {
+    const labels: Record<string, string> = {
+      CORTEX_STEP_STATUS_INVALID: "Invalid",
+      CORTEX_STEP_STATUS_CANCELED: "Canceled",
+      CORTEX_STEP_STATUS_ERROR: "Failed",
+      CORTEX_STEP_STATUS_INTERRUPTED: "Interrupted",
+    };
+    return { label: labels[status], className: "cmd-fail" };
+  }
+  if (ACTIVE_SUBAGENT_STATUSES.has(status)) {
+    const labels: Record<string, string> = {
+      CORTEX_STEP_STATUS_GENERATING: "Generating",
+      CORTEX_STEP_STATUS_QUEUED: "Queued",
+      CORTEX_STEP_STATUS_PENDING: "Pending",
+      CORTEX_STEP_STATUS_RUNNING: "Running",
+      CORTEX_STEP_STATUS_WAITING: "Waiting",
+    };
+    return { label: labels[status], className: "cmd-wait" };
+  }
+  return { className: "" };
+}
+
+interface SubagentCardProps {
+  step: TrajectoryStep;
+  data?: SubagentDisplayData;
+}
+
+export function SubagentCard({ step, data }: SubagentCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const display = data ?? subagentDataFromStep(step);
+  if (!display) return null;
+
+  const hasDetails = display.items.some((item) => item.details.length > 0);
+  const status = subagentStatus(step.status);
+
+  return (
+    <div
+      className={`chat-block step-card subagent-card ${status.className}`}
+    >
+      <button
+        type="button"
+        className="step-card-header"
+        onClick={() => hasDetails && setExpanded((value) => !value)}
+        title={hasDetails ? "Toggle subagent details" : undefined}
+        aria-expanded={hasDetails ? expanded : undefined}
+      >
+        <span className="step-card-icon">
+          <IconUsers size={12} />
+        </span>
+        <span className="subagent-role">{display.title}</span>
+        <span className="subagent-type-badge">{display.kind}</span>
+        {display.action && (
+          <span className="step-card-desc">{display.action}</span>
+        )}
+        {status.label && (
+          <span className="subagent-status">{status.label}</span>
+        )}
+        {hasDetails && (
+          <span className={`step-card-chevron ${expanded ? "open" : ""}`}>
+            ▾
+          </span>
+        )}
+      </button>
+      <div className="subagent-list">
+        {display.items.map((item, itemIndex) => (
+          <div
+            className="subagent-entry"
+            key={`${item.role}-${item.typeName}-${itemIndex}`}
+          >
+            <div className="subagent-entry-header">
+              <span className="subagent-entry-role">{item.role}</span>
+              <span className="subagent-type-badge">{item.typeName}</span>
+              {item.model && (
+                <span className="subagent-model">{item.model}</span>
+              )}
+            </div>
+            {expanded && item.details.length > 0 && (
+              <div className="subagent-details">
+                {item.details.map((itemDetail, detailIndex) => (
+                  <div
+                    className="subagent-detail"
+                    key={`${itemDetail.label}-${detailIndex}`}
+                  >
+                    <div className="subagent-prompt-label">
+                      {itemDetail.label}:
+                    </div>
+                    <pre className="subagent-prompt-text">
+                      {itemDetail.text}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
