@@ -428,4 +428,32 @@ describe("stepsToMessages", () => {
     expect(msgs[3].role).toBe("assistant");
     expect(msgs).toHaveLength(4);
   });
+
+  // ── Subagent steps ──
+
+  it("converts invoke_subagent tool call to subagent system message", () => {
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_TOOL_CALL",
+      metadata: {
+        toolCall: {
+          name: "invoke_subagent",
+          argumentsJson: JSON.stringify({
+            Subagents: [
+              {
+                Role: "Config Auditor",
+                TypeName: "research",
+                Prompt: "Audit all config files",
+              },
+            ],
+            toolAction: "Invoking research subagent",
+          }),
+        },
+      },
+    };
+
+    const msgs = stepsToMessages([step]);
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].type).toBe("CORTEX_STEP_TYPE_SUBAGENT");
+    expect(msgs[0].step).toBe(step);
+  });
 });

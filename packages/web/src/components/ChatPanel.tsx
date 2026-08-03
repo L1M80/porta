@@ -24,6 +24,7 @@ import {
   CommandCard,
   CodeActionCard,
   FilePermissionCard,
+  SubagentCard,
 } from "./StepCards";
 import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
 import {
@@ -310,6 +311,13 @@ function SystemMessage({
       return (
         <div className="message system">
           <CodeActionCard step={msg.step} />
+        </div>
+      );
+    }
+    if (msg.type === "CORTEX_STEP_TYPE_SUBAGENT") {
+      return (
+        <div className="message system">
+          <SubagentCard step={msg.step} />
         </div>
       );
     }
