@@ -28,12 +28,24 @@ export async function ensureStandaloneCore(): Promise<void> {
       process.env.PORTA_CORE_BINARY_PATH ||
       "agy";
 
-    if (binaryPath === "agy" || binaryPath.endsWith("/agy")) {
-      console.log(`[Core Manager] Starting standalone Antigravity CLI via script...`);
-      coreProcess = spawn("script", ["-q", "-c", binaryPath, "/dev/null"], {
-        stdio: "ignore",
-        detached: true,
-      });
+    const isWin = process.platform === "win32";
+    const basename = binaryPath.replace(/^.*[\\/]/, "").toLowerCase();
+    const isAgyCli = basename === "agy" || basename === "agy.exe";
+
+    if (isAgyCli) {
+      if (isWin) {
+        console.log(`[Core Manager] Starting standalone Antigravity CLI on Windows...`);
+        coreProcess = spawn(binaryPath, [], {
+          stdio: "ignore",
+          detached: true,
+        });
+      } else {
+        console.log(`[Core Manager] Starting standalone Antigravity CLI via script...`);
+        coreProcess = spawn("script", ["-q", "-c", binaryPath, "/dev/null"], {
+          stdio: "ignore",
+          detached: true,
+        });
+      }
     } else {
       const csrfToken = randomUUID();
       console.log(`[Core Manager] Starting standalone Antigravity core from ${binaryPath} with csrf ${csrfToken}...`);

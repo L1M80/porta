@@ -70,7 +70,8 @@ export function parseCommandCandidate(
 
   let csrfToken = parseArgValue(args, "--csrf_token");
   if (!csrfToken) {
-    if (executable.toLowerCase() === "agy" || executable.toLowerCase() === "agy.exe") {
+    const basename = executable.replace(/^.*[\\/]/, '').toLowerCase();
+    if (basename === "agy" || basename === "agy.exe") {
       csrfToken = "agy_no_csrf";
     } else {
       return undefined;
