@@ -317,7 +317,7 @@ function SystemMessage({
     if (msg.type === "CORTEX_STEP_TYPE_SUBAGENT") {
       return (
         <div className="message system">
-          <SubagentCard step={msg.step} />
+          <SubagentCard step={msg.step} data={msg.subagent} />
         </div>
       );
     }
