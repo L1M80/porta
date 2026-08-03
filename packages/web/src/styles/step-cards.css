@@ -688,3 +688,51 @@
   border-color: var(--accent-hover);
   box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3);
 }
+
+/* ── Subagent Card ── */
+
+.subagent-card .subagent-role {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 6px;
+}
+
+.subagent-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+  margin-right: 8px;
+}
+
+.step-card-subagent-prompt {
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  font-size: 12px;
+  background: var(--bg-surface);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.subagent-prompt-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.subagent-prompt-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}

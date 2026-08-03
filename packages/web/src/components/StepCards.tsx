@@ -8,6 +8,7 @@ import {
   IconFileText,
   IconLock,
   IconMessageCircle,
+  IconUsers,
 } from "./Icons";
 import type {
   AskQuestionEntry,
@@ -587,6 +588,69 @@ export function CodeActionCard({ step }: CodeActionCardProps) {
               </div>
             ))}
           </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Subagent Card ──
+
+export function SubagentCard({ step }: { step: TrajectoryStep }) {
+  const [expanded, setExpanded] = useState(false);
+  const toolCall = step.metadata?.toolCall;
+  const toolName = toolCall?.name ?? "invoke_subagent";
+
+  let subagents: Array<{ Role?: string; TypeName?: string; Prompt?: string; Model?: string }> = [];
+  let toolAction = (step as any).toolAction ?? "";
+  let toolSummary = (step as any).toolSummary ?? "";
+
+  if (toolCall?.argumentsJson) {
+    try {
+      const parsed = JSON.parse(toolCall.argumentsJson);
+      if (Array.isArray(parsed.Subagents)) {
+        subagents = parsed.Subagents;
+      }
+      if (parsed.toolAction) toolAction = parsed.toolAction;
+      if (parsed.toolSummary) toolSummary = parsed.toolSummary;
+    } catch {
+      // ignore
+    }
+  }
+
+  const primaryRole =
+    subagents[0]?.Role ||
+    toolSummary ||
+    (toolName === "define_subagent" ? "Subagent Defined" : "Subagent Invoked");
+  const primaryTypeName = subagents[0]?.TypeName || "subagent";
+  const promptText = subagents[0]?.Prompt || "";
+  const isRunning =
+    step.status === "CORTEX_STEP_STATUS_RUNNING" ||
+    step.status === "CORTEX_STEP_STATUS_WAITING";
+
+  return (
+    <div className={`chat-block step-card subagent-card ${isRunning ? "cmd-wait" : ""}`}>
+      <button
+        className="step-card-header"
+        onClick={() => promptText && setExpanded((v) => !v)}
+        title={promptText ? "Toggle subagent prompt" : undefined}
+      >
+        <span className="step-card-icon">
+          <IconUsers size={12} />
+        </span>
+        <span className="subagent-role">{primaryRole}</span>
+        <span className="subagent-type-badge">{primaryTypeName}</span>
+        {toolAction && <span className="step-card-desc">{toolAction}</span>}
+        {promptText && (
+          <span className={`step-card-chevron ${expanded ? "open" : ""}`}>
+            ▾
+          </span>
+        )}
+      </button>
+      {expanded && promptText && (
+        <div className="step-card-subagent-prompt">
+          <div className="subagent-prompt-label">Instructions:</div>
+          <pre className="subagent-prompt-text">{promptText}</pre>
         </div>
       )}
     </div>
