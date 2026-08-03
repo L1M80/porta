@@ -8,14 +8,17 @@ import {
   IconFileText,
   IconLock,
   IconMessageCircle,
+  IconUsers,
 } from "./Icons";
 import type {
   AskQuestionEntry,
   AskQuestionOption,
   AskQuestionRequest,
-  TrajectoryStep,
   FilePermissionRequest,
+  SubagentDisplayData,
+  TrajectoryStep,
 } from "../types";
+import { subagentDataFromStep } from "../utils/subagents";
 
 /** Extract file basename from a URI or path */
 function basename(uriOrPath: string): string {
@@ -59,15 +62,22 @@ interface FilePermissionCardProps {
     scope: number,
     absolutePathUri: string,
   ) => void;
+  onGenericPermission?: (
+    trajectoryId: string,
+    stepIndex: number,
+    allow: boolean,
+  ) => Promise<void>;
 }
 
 export function FilePermissionCard({
   step,
   permissionRequest,
   onFilePermission,
+  onGenericPermission,
 }: FilePermissionCardProps) {
   const [responded, setResponded] = useState(false);
   const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+  const usesGenericPermission = permissionRequest.responseKind === "permission";
 
   const trajectoryId =
     step.metadata?.sourceTrajectoryStepInfo?.trajectoryId ?? "";
@@ -79,8 +89,14 @@ export function FilePermissionCard({
 
   const handleResponse = (allow: boolean, scope: number) => {
     setResponded(true);
+    if (usesGenericPermission) {
+      void onGenericPermission?.(trajectoryId, stepIndex, allow);
+      return;
+    }
     onFilePermission(trajectoryId, stepIndex, allow, scope, path);
   };
+
+  const canRespond = !usesGenericPermission || !!onGenericPermission;
 
   return (
     <div
@@ -91,7 +107,11 @@ export function FilePermissionCard({
           <IconLock size={12} />
         </span>
         <span className="step-card-desc">
-          File access requested:{" "}
+          {permissionRequest.action === "write_file"
+            ? "Allow write access to this path: "
+            : permissionRequest.action === "read_file"
+              ? "Allow read access to this path: "
+              : "File access requested: "}
           <code className="step-card-file">{displayPath}</code>
           {isDir ? " (directory)" : ""}
         </span>
@@ -104,7 +124,7 @@ export function FilePermissionCard({
             .toLowerCase()}
         </div>
       )}
-      {isWaiting && !responded && (
+      {isWaiting && !responded && canRespond && (
         <div className="step-card-actions file-permission-actions">
           <button
             className="approve-btn file-permission-btn deny"
@@ -112,18 +132,31 @@ export function FilePermissionCard({
           >
             Deny
           </button>
-          <button
-            className="approve-btn file-permission-btn allow-once"
-            onClick={() => handleResponse(true, PERMISSION_SCOPE_ONCE)}
-          >
-            Allow Once
-          </button>
-          <button
-            className="approve-btn file-permission-btn allow-conversation"
-            onClick={() => handleResponse(true, PERMISSION_SCOPE_CONVERSATION)}
-          >
-            Allow This Conversation
-          </button>
+          {usesGenericPermission ? (
+            <button
+              className="approve-btn file-permission-btn allow-conversation"
+              onClick={() => handleResponse(true, 0)}
+            >
+              Allow
+            </button>
+          ) : (
+            <>
+              <button
+                className="approve-btn file-permission-btn allow-once"
+                onClick={() => handleResponse(true, PERMISSION_SCOPE_ONCE)}
+              >
+                Allow Once
+              </button>
+              <button
+                className="approve-btn file-permission-btn allow-conversation"
+                onClick={() =>
+                  handleResponse(true, PERMISSION_SCOPE_CONVERSATION)
+                }
+              >
+                Allow This Conversation
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -559,6 +592,131 @@ export function CodeActionCard({ step }: CodeActionCardProps) {
           </pre>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Subagent Card ──
+
+const ACTIVE_SUBAGENT_STATUSES = new Set([
+  "CORTEX_STEP_STATUS_GENERATING",
+  "CORTEX_STEP_STATUS_QUEUED",
+  "CORTEX_STEP_STATUS_PENDING",
+  "CORTEX_STEP_STATUS_RUNNING",
+  "CORTEX_STEP_STATUS_WAITING",
+]);
+
+const FAILED_SUBAGENT_STATUSES = new Set([
+  "CORTEX_STEP_STATUS_INVALID",
+  "CORTEX_STEP_STATUS_CANCELED",
+  "CORTEX_STEP_STATUS_ERROR",
+  "CORTEX_STEP_STATUS_INTERRUPTED",
+]);
+
+function subagentStatus(status?: string): {
+  label?: string;
+  className: string;
+} {
+  if (!status) return { className: "" };
+  if (status === "CORTEX_STEP_STATUS_DONE") {
+    return { label: "Done", className: "cmd-ok" };
+  }
+  if (FAILED_SUBAGENT_STATUSES.has(status)) {
+    const labels: Record<string, string> = {
+      CORTEX_STEP_STATUS_INVALID: "Invalid",
+      CORTEX_STEP_STATUS_CANCELED: "Canceled",
+      CORTEX_STEP_STATUS_ERROR: "Failed",
+      CORTEX_STEP_STATUS_INTERRUPTED: "Interrupted",
+    };
+    return { label: labels[status], className: "cmd-fail" };
+  }
+  if (ACTIVE_SUBAGENT_STATUSES.has(status)) {
+    const labels: Record<string, string> = {
+      CORTEX_STEP_STATUS_GENERATING: "Generating",
+      CORTEX_STEP_STATUS_QUEUED: "Queued",
+      CORTEX_STEP_STATUS_PENDING: "Pending",
+      CORTEX_STEP_STATUS_RUNNING: "Running",
+      CORTEX_STEP_STATUS_WAITING: "Waiting",
+    };
+    return { label: labels[status], className: "cmd-wait" };
+  }
+  return { className: "" };
+}
+
+interface SubagentCardProps {
+  step: TrajectoryStep;
+  data?: SubagentDisplayData;
+}
+
+export function SubagentCard({ step, data }: SubagentCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const display = data ?? subagentDataFromStep(step);
+  if (!display) return null;
+
+  const hasDetails = display.items.some((item) => item.details.length > 0);
+  const status = subagentStatus(step.status);
+
+  return (
+    <div
+      className={`chat-block step-card subagent-card ${status.className}`}
+    >
+      <button
+        type="button"
+        className="step-card-header"
+        onClick={() => hasDetails && setExpanded((value) => !value)}
+        title={hasDetails ? "Toggle subagent details" : undefined}
+        aria-expanded={hasDetails ? expanded : undefined}
+      >
+        <span className="step-card-icon">
+          <IconUsers size={12} />
+        </span>
+        <span className="subagent-role">{display.title}</span>
+        <span className="subagent-type-badge">{display.kind}</span>
+        {display.action && (
+          <span className="step-card-desc">{display.action}</span>
+        )}
+        {status.label && (
+          <span className="subagent-status">{status.label}</span>
+        )}
+        {hasDetails && (
+          <span className={`step-card-chevron ${expanded ? "open" : ""}`}>
+            ▾
+          </span>
+        )}
+      </button>
+      <div className="subagent-list">
+        {display.items.map((item, itemIndex) => (
+          <div
+            className="subagent-entry"
+            key={`${item.role}-${item.typeName}-${itemIndex}`}
+          >
+            <div className="subagent-entry-header">
+              <span className="subagent-entry-role">{item.role}</span>
+              <span className="subagent-type-badge">{item.typeName}</span>
+              {item.model && (
+                <span className="subagent-model">{item.model}</span>
+              )}
+            </div>
+            {expanded && item.details.length > 0 && (
+              <div className="subagent-details">
+                {item.details.map((itemDetail, detailIndex) => (
+                  <div
+                    className="subagent-detail"
+                    key={`${itemDetail.label}-${detailIndex}`}
+                  >
+                    <div className="subagent-prompt-label">
+                      {itemDetail.label}:
+                    </div>
+                    <pre className="subagent-prompt-text">
+                      {itemDetail.text}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

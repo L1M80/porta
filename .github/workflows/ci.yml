@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
     paths:
       - ".github/workflows/ci.yml"
+      - "deploy/windows/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -18,12 +19,14 @@ on:
       - "packages/web/package.json"
       - "packages/web/e2e/**"
       - "packages/web/tsconfig*.json"
+      - "packages/web/vite-access-gate*.ts"
       - "packages/web/vite.config.ts"
       - "packages/web/vitest.config.ts"
       - "packages/web/vitest.e2e.config.ts"
   pull_request:
     paths:
       - ".github/workflows/ci.yml"
+      - "deploy/windows/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -37,6 +40,7 @@ on:
       - "packages/web/package.json"
       - "packages/web/e2e/**"
       - "packages/web/tsconfig*.json"
+      - "packages/web/vite-access-gate*.ts"
       - "packages/web/vite.config.ts"
       - "packages/web/vitest.config.ts"
       - "packages/web/vitest.e2e.config.ts"
@@ -71,6 +75,32 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Validate Windows PowerShell scripts
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $failed = $false
+          Get-ChildItem deploy/windows -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref] $tokens,
+              [ref] $parseErrors
+            ) | Out-Null
+
+            if ($parseErrors.Count -gt 0) {
+              $failed = $true
+              Write-Error "$($_.Name): $($parseErrors.Message -join '; ')"
+            }
+          }
+
+          if ($failed) {
+            exit 1
+          }
+
+          & ./deploy/windows/watchdog-common.tests.ps1
 
   e2e:
     runs-on: ubuntu-latest

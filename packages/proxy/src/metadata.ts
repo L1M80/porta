@@ -2,7 +2,7 @@
  * Shared metadata and disk-scanning utilities for the proxy.
  */
 
-import { readdir, stat } from "node:fs/promises";
+import { readdir, stat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -174,4 +174,36 @@ export function withNormalizedConversationWorkspaces<T extends Record<string, un
   const workspaces = extractConversationWorkspaces(summary);
   if (workspaces.length === 0) return summary;
   return { ...summary, workspaces };
+}
+
+function safeDecodeUriComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+export async function getProjectNameMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const projectsDir = join(homedir(), ".gemini", "config", "projects");
+  try {
+    const files = await readdir(projectsDir);
+    for (const file of files) {
+      if (file.endsWith(".json")) {
+        try {
+          const content = await readFile(join(projectsDir, file), "utf8");
+          const data = JSON.parse(content);
+          if (data.id && data.name) {
+            map.set(data.id, safeDecodeUriComponent(data.name));
+          }
+        } catch {
+          // ignore invalid json
+        }
+      }
+    }
+  } catch {
+    // projects dir missing or unreadable
+  }
+  return map;
 }

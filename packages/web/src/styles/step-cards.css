@@ -688,3 +688,93 @@
   border-color: var(--accent-hover);
   box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3);
 }
+
+/* ── Subagent Card ── */
+
+.subagent-card .subagent-role {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.subagent-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--accent);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.subagent-status {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.subagent-list {
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.subagent-entry {
+  padding: 8px 14px;
+}
+
+.subagent-entry + .subagent-entry {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.subagent-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.subagent-entry-role {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.subagent-model {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.subagent-details {
+  margin-top: 8px;
+}
+
+.subagent-detail + .subagent-detail {
+  margin-top: 10px;
+}
+
+.subagent-prompt-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.subagent-prompt-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
