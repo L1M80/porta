@@ -95,5 +95,11 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    preview: {
+      host: env.PORTA_HOST || process.env.PORTA_HOST || "127.0.0.1",
+      port: Number(env.PORTA_WEB_PORT || process.env.PORTA_WEB_PORT || 5173),
+      strictPort: true,
+      ...(allowedHosts !== undefined ? { allowedHosts } : { allowedHosts: true }),
+    },
   };
 });
