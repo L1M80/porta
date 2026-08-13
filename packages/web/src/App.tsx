@@ -299,6 +299,11 @@ function ChatView() {
         <ChatHeader
           title={headerTitle}
           projectName={projectSlug ?? undefined}
+          targetApp={settings.targetApp}
+          onTargetAppChange={(app) => {
+            updateSettings({ targetApp: app });
+            setTimeout(() => refresh(), 50);
+          }}
           onMenuToggle={() => setSidebarOpen(true)}
         />
         {isSettingsPage ? (

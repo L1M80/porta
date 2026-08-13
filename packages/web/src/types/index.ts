@@ -336,6 +336,8 @@ export interface ChatMessage {
   optimisticState?: "unconfirmed" | "failed";
 }
 
+export type TargetApp = "all" | "antigravity" | "antigravity-ide";
+
 // ── Client Settings ──
 
 export interface ClientSettings {
@@ -345,4 +347,6 @@ export interface ClientSettings {
   defaultPlannerType: "conversational" | "planning";
   /** Enables browser notifications for run completion and approval requests. */
   browserNotificationsEnabled: boolean;
+  /** Target application engine filter (antigravity vs antigravity-ide vs all). */
+  targetApp: TargetApp;
 }

@@ -46,8 +46,17 @@ export function useStepsStream(
   isConversationRunning = false,
   keepAliveWhenHidden = false,
 ): UseStepsStreamResult {
-  const [steps, setSteps] = useState<TrajectoryStep[]>([]);
-  const [loading, setLoading] = useState(true);
+  const getCachedSteps = () => {
+    try {
+      const cached = sessionStorage.getItem(`porta:steps:${cascadeId}`);
+      if (cached) return JSON.parse(cached) as TrajectoryStep[];
+    } catch {}
+    return [];
+  };
+
+  const initialCachedSteps = getCachedSteps();
+  const [steps, setSteps] = useState<TrajectoryStep[]>(initialCachedSteps);
+  const [loading, setLoading] = useState(initialCachedSteps.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -56,13 +65,21 @@ export function useStepsStream(
   const mountedRef = useRef(true);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stepsRef = useRef<TrajectoryStep[]>([]);
+  const stepsRef = useRef<TrajectoryStep[]>(initialCachedSteps);
   // The absolute offset of stepsRef[0] in the full trajectory.
   const baseOffsetRef = useRef(0);
   // The exact offset of the NEXT step AFTER the end of stepsRef.
   const endOffsetRef = useRef(0);
   // Monotonic generation counter — prevents stale responses from overwriting.
   const genRef = useRef(0);
+
+  const saveStepsToCache = useCallback((newSteps: TrajectoryStep[]) => {
+    try {
+      sessionStorage.setItem(`porta:steps:${cascadeId}`, JSON.stringify(newSteps));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [cascadeId]);
   const bumpGeneration = useCallback(() => {
     genRef.current += 1;
   }, []);
@@ -86,33 +103,23 @@ export function useStepsStream(
   const initialFetch = useCallback(async () => {
     const gen = genRef.current;
     try {
-      // Calculate starting offset from the known total step count.
-      // If we don't know the count, we use the `tail` parameter to let the proxy compute it.
-      const isUnknown = totalRef.current === 0;
-      const startOffset = isUnknown
-        ? 0
-        : Math.max(0, totalRef.current - PAGE_SIZE);
       console.debug(
-        `[useStepsStream] initialFetch cascadeId=${cascadeId.slice(0, 8)} gen=${gen} total=${totalRef.current} isUnknown=${isUnknown} startOffset=${startOffset}`,
+        `[useStepsStream] initialFetch cascadeId=${cascadeId.slice(0, 8)} gen=${gen}`,
       );
-      const result = await api.getSteps(
-        cascadeId,
-        startOffset,
-        undefined,
-        isUnknown ? PAGE_SIZE : undefined,
-      );
+      const result = await api.getSteps(cascadeId, 0, 1000);
       console.debug(
         `[useStepsStream] initialFetch result: mounted=${mountedRef.current} gen=${gen}==${genRef.current} steps=${(result.steps ?? []).length} offset=${result.offset}`,
       );
       if (!mountedRef.current || gen !== genRef.current) return;
 
       const fetchedSteps = result.steps ?? [];
-      const offset = result.offset ?? startOffset;
+      const offset = result.offset ?? 0;
 
       baseOffsetRef.current = offset;
       endOffsetRef.current = offset + fetchedSteps.length;
       stepsRef.current = fetchedSteps;
       setSteps([...fetchedSteps]);
+      saveStepsToCache(fetchedSteps);
       setHasMore(offset > 0);
       setLoading(false);
       setError(null);
@@ -138,14 +145,28 @@ export function useStepsStream(
         return;
       }
 
+function getTargetAppQuery(): string {
+  try {
+    const raw = localStorage.getItem("porta:settings");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.targetApp && parsed.targetApp !== "all") {
+        return `?targetApp=${encodeURIComponent(parsed.targetApp)}`;
+      }
+    }
+  } catch {}
+  return "";
+}
+
       const apiBase = import.meta.env.VITE_API_BASE ?? "";
+      const targetQuery = getTargetAppQuery();
       let url: string;
       if (apiBase) {
         const wsBase = apiBase.replace(/^http/, "ws");
-        url = `${wsBase}/api/conversations/${cascadeId}/ws`;
+        url = `${wsBase}/api/conversations/${cascadeId}/ws${targetQuery}`;
       } else {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        url = `${protocol}//${window.location.host}/api/conversations/${cascadeId}/ws`;
+        url = `${protocol}//${window.location.host}/api/conversations/${cascadeId}/ws${targetQuery}`;
       }
       const gen = genRef.current;
 
@@ -213,6 +234,7 @@ export function useStepsStream(
                 stepsRef.current = updated;
                 endOffsetRef.current = deltaOffset + newSteps.length;
                 setSteps([...updated]);
+                saveStepsToCache(updated);
               }
               // If relOffset < 0, the delta is for steps before our window
               // (shouldn't happen in practice — ignore)
@@ -353,6 +375,7 @@ export function useStepsStream(
       baseOffsetRef.current = actualOffset;
       stepsRef.current = [...olderSteps, ...stepsRef.current];
       setSteps([...stepsRef.current]);
+      saveStepsToCache(stepsRef.current);
       setHasMore(actualOffset > 0);
 
       return olderSteps.length;
@@ -370,20 +393,11 @@ export function useStepsStream(
       const gen = genRef.current;
 
       try {
-        const isUnknown = totalRef.current === 0;
-        const startOffset = isUnknown
-          ? 0
-          : Math.max(0, totalRef.current - PAGE_SIZE);
-        const result = await api.getSteps(
-          cascadeId,
-          startOffset,
-          undefined,
-          isUnknown ? PAGE_SIZE : undefined,
-        );
+        const result = await api.getSteps(cascadeId, 0, 1000);
         if (!mountedRef.current || gen !== genRef.current) return;
 
         const fetchedSteps = result.steps ?? [];
-        const fetchedOffset = result.offset ?? startOffset;
+        const fetchedOffset = result.offset ?? 0;
 
         if (stepsRef.current.length === 0) {
           // First load — just set everything
@@ -391,6 +405,7 @@ export function useStepsStream(
           endOffsetRef.current = fetchedOffset + fetchedSteps.length;
           stepsRef.current = fetchedSteps;
           setSteps([...fetchedSteps]);
+          saveStepsToCache(fetchedSteps);
           setHasMore(fetchedOffset > 0);
           setLoading(false);
         } else {
@@ -412,6 +427,7 @@ export function useStepsStream(
           endOffsetRef.current = Math.max(currentEnd, fetchedEnd);
           stepsRef.current = merged;
           setSteps([...merged]);
+          saveStepsToCache(merged);
           setHasMore(newBase > 0);
         }
         setError(null);
@@ -464,6 +480,7 @@ export function useStepsStream(
     baseOffsetRef.current = 0;
     endOffsetRef.current = 0;
     setSteps([]);
+    saveStepsToCache([]);
     setLoading(true);
     setError(null);
     setHasMore(false);
