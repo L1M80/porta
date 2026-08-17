@@ -4,19 +4,21 @@ import type { ProcessDiscoveryCandidate } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const LANGUAGE_SERVER_EXECUTABLE =
-  /(?:^|[\\/])language_server(?:_[^/\\\s"']+)?(?:\.exe)?$/i;
+  /(?:^|[\\/])(language_server(?:_[^/\\\s"']+)?|agy)(?:\.exe)?$/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function parseExecutable(args: string): string | undefined {
-  const match = args.match(/^(?:"([^"]+)"|'([^']+)'|(\S+))(?:\s|$)/);
-  return match?.[1] ?? match?.[2] ?? match?.[3];
+  const match = args.match(/^(?:["']?([^"']+)["']?)/);
+  const raw = match?.[1] ?? args;
+  const lsMatch = raw.match(/^(.*?language_server[^\s]*)/i);
+  return (lsMatch?.[1] ?? raw).trim();
 }
 
 export function isLanguageServerExecutable(value: string): boolean {
-  return LANGUAGE_SERVER_EXECUTABLE.test(value.trim());
+  return /(?:^|[\\/])language_server(?:_[^/\\\s"']+)?(?:\.exe)?$/i.test(value.trim());
 }
 
 function parseArgValue(args: string, flag: string): string | undefined {
@@ -68,8 +70,15 @@ export function parseCommandCandidate(
     return undefined;
   }
 
-  const csrfToken = parseArgValue(args, "--csrf_token");
-  if (!csrfToken) return undefined;
+  let csrfToken = parseArgValue(args, "--csrf_token");
+  if (!csrfToken) {
+    const basename = executable.replace(/^.*[\\/]/, '').toLowerCase();
+    if (basename === "agy" || basename === "agy.exe") {
+      csrfToken = "agy_no_csrf";
+    } else {
+      return undefined;
+    }
+  }
   const appDataDir = parseArgValue(args, "--app_data_dir");
 
   return {
@@ -150,7 +159,7 @@ export function parseSsPorts(output: string, pid: number): number[] {
   for (const rawLine of output.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
-    if (!line.includes(`pid=${pid},`) || !line.includes("language_server")) {
+    if (!line.includes(`pid=${pid},`) || (!line.includes("language_server") && !line.includes("agy"))) {
       continue;
     }
 
@@ -173,7 +182,7 @@ export function parseLsofPorts(output: string): number[] {
     const line = rawLine.trim();
     if (!line || !line.includes("(LISTEN)")) continue;
 
-    const match = line.match(/:(\d+)\s+\(LISTEN\)$/);
+    const match = line.match(/:(\d+)\s+\(LISTEN\)/);
     if (!match) continue;
 
     const port = parseInt(match[1], 10);

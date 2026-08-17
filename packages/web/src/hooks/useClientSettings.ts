@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: ClientSettings = {
   defaultModel: DEFAULT_MODEL,
   defaultPlannerType: "conversational",
   browserNotificationsEnabled: false,
+  targetApp: "all",
 };
 
 function readSettings(): ClientSettings {

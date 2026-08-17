@@ -41,10 +41,11 @@ import {
   IconAlertTriangle,
   IconChevron,
 } from "./Icons";
-import type { AskQuestionEntry, ChatMessage } from "../types";
+import type { AskQuestionEntry, ChatMessage, TargetApp } from "../types";
 
 interface Props {
   cascadeId: string;
+  targetApp?: TargetApp;
   onRevert: (stepIndex: number, editText?: string) => void;
   onFilePermission: (
     trajectoryId: string,
@@ -543,6 +544,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
 export function ChatPanel({
   cascadeId,
+  targetApp = "all",
   onRevert,
   onFilePermission,
   onCommandAction,
@@ -572,6 +574,7 @@ export function ChatPanel({
     onSidebarRefresh,
     isConversationRunning,
     browserNotificationsEnabled,
+    targetApp,
   );
 
   useChatNotifications({
@@ -663,6 +666,7 @@ export function ChatPanel({
   }, [liveImplementationPlanActive, liveImplementationPlan]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
   const didInitialScroll = useRef(false);
   const isNearBottom = useRef(true);
   const showScrollBtnRef = useRef(false);
@@ -689,6 +693,22 @@ export function ChatPanel({
     }
     prevMsgCount.current = messages.length;
   }, [messages.length]);
+
+  // Keep scroll at bottom if content resizes (e.g., images loading, markdown expanding)
+  useLayoutEffect(() => {
+    const innerEl = innerRef.current;
+    const scrollEl = scrollRef.current;
+    if (!innerEl || !scrollEl || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      if (didInitialScroll.current && isNearBottom.current && !suppressScroll.current) {
+        scrollEl.scrollTop = scrollEl.scrollHeight;
+      }
+    });
+
+    observer.observe(innerEl);
+    return () => observer.disconnect();
+  }, []);
 
   // Lazy load older steps when user scrolls to top
   const loadOlderLock = useRef(false);
@@ -744,8 +764,6 @@ export function ChatPanel({
       behavior: "smooth",
     });
   }, []);
-
-  const innerRef = useRef<HTMLDivElement>(null);
 
   // Prevent infinite retry of broken images rendered from markdown.
   // When an <img> 404s, mark it so subsequent re-renders don't re-request it.

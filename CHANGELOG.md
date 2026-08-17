@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-08-17
+
+### Added
+
+- Added an app target selector for switching between all discovered engines,
+  Antigravity, and Antigravity IDE. The selected target is preserved across
+  HTTP requests, conversation mutations, and WebSocket updates. (#128)
+- Porta can now start a standalone Antigravity CLI/core when no Language Server
+  is available, with configurable binary selection and clean shutdown handling.
+  (#127)
+- Added a native production runner for launching the built proxy and web
+  preview together with project environment settings. (#127)
+
+### Changed
+
+- Conversation histories are restored from session storage and refreshed in
+  the background, reducing blank loading states on mobile reloads. (#128)
+
+### Fixed
+
+- Chat auto-scroll now follows asynchronous content growth when the user is
+  already near the bottom. (#128)
+- Language Server discovery now invalidates stale routing state after
+  unavailable or not-found RPC responses and supports headless `agy` discovery
+  and CLI conversation storage. (#127)
+- Command-action responses once again use the payload expected by Antigravity.
+  (#127)
+
+### Security
+
+- Production previews retain Vite host validation by default while still
+  supporting explicitly configured allowed hosts. (#127)
+- Updated React Router and Hono to versions containing upstream fixes for
+  remote code execution, cross-site scripting, denial-of-service, and related
+  request-handling vulnerabilities.
+
 ## [0.15.0] - 2026-08-03
 
 ### Added

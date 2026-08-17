@@ -21,6 +21,7 @@ import {
   rememberSuccessfulTransport,
   type TransportProtocol,
 } from "./transport-hints.js";
+import { ensureStandaloneCore } from "./core-manager.js";
 
 export interface LSInstance {
   pid: number;
@@ -42,6 +43,10 @@ const DAEMON_DIRS = [
   {
     dir: join(homedir(), ".gemini", "antigravity-ide", "daemon"),
     appDataDir: "antigravity-ide",
+  },
+  {
+    dir: join(homedir(), ".gemini", "antigravity-cli", "daemon"),
+    appDataDir: "antigravity-cli",
   },
 ];
 const SERVICE_PREFIX = "exa.language_server_pb.LanguageServerService";
@@ -405,48 +410,67 @@ export class LSDiscovery {
   }
 
   protected async discover(): Promise<LSInstance[]> {
-    return discoverInstances();
+    let instances = await discoverInstances();
+    if (instances.length === 0) {
+      await ensureStandaloneCore();
+      instances = await discoverInstances();
+    }
+    return instances;
   }
 
-  async getInstances(forceRefresh = false): Promise<LSInstance[]> {
+  invalidateCache(): void {
+    this.lastDiscovery = 0;
+  }
+
+  async getInstances(
+    forceRefresh = false,
+    targetAppDataDir?: string,
+  ): Promise<LSInstance[]> {
     const now = Date.now();
     const cacheFresh =
       !forceRefresh &&
       this.instances.length > 0 &&
       now - this.lastDiscovery <= this.ttlMs;
 
+    let instances: LSInstance[];
     if (cacheFresh) {
-      return this.instances;
+      instances = this.instances;
+    } else if (!forceRefresh && this.pendingDiscovery) {
+      instances = await this.pendingDiscovery;
+    } else {
+      const generation = ++this.discoveryGeneration;
+      const pending = this.discover()
+        .then((discovered) => {
+          if (generation === this.discoveryGeneration) {
+            this.instances = discovered;
+            this.lastDiscovery = Date.now();
+          }
+          return discovered;
+        })
+        .finally(() => {
+          if (this.pendingDiscovery === pending) {
+            this.pendingDiscovery = null;
+          }
+        });
+
+      this.pendingDiscovery = pending;
+      instances = await pending;
     }
 
-    if (!forceRefresh && this.pendingDiscovery) {
-      return this.pendingDiscovery;
+    if (targetAppDataDir && targetAppDataDir !== "all") {
+      return instances.filter((inst) => inst.appDataDir === targetAppDataDir);
     }
-
-    const generation = ++this.discoveryGeneration;
-    const pending = this.discover()
-      .then((instances) => {
-        if (generation === this.discoveryGeneration) {
-          this.instances = instances;
-          this.lastDiscovery = Date.now();
-        }
-        return instances;
-      })
-      .finally(() => {
-        if (this.pendingDiscovery === pending) {
-          this.pendingDiscovery = null;
-        }
-      });
-
-    this.pendingDiscovery = pending;
-    return pending;
+    return instances;
   }
 
   /**
    * Get the first available instance (or a specific workspace).
    */
-  async getInstance(workspaceId?: string): Promise<LSInstance | null> {
-    const instances = await this.getInstances();
+  async getInstance(
+    workspaceId?: string,
+    targetAppDataDir?: string,
+  ): Promise<LSInstance | null> {
+    const instances = await this.getInstances(false, targetAppDataDir);
 
     if (workspaceId) {
       return instances.find((inst) => inst.workspaceId === workspaceId) ?? null;

@@ -35,7 +35,7 @@ import { conversationSignals } from "./signals.js";
 /** Active polling interval (ms). */
 const ACTIVE_INTERVAL = 200;
 /** Idle polling interval (ms) for externally-originated updates. */
-const HEARTBEAT_INTERVAL = 5000;
+const HEARTBEAT_INTERVAL = 1000;
 /** Transport keepalive interval (ms) for detecting dead idle sockets. */
 const SOCKET_KEEPALIVE_INTERVAL = 25_000;
 
@@ -74,10 +74,6 @@ const TERMINAL_STATUSES = new Set([
 ]);
 
 type PollState = "idle" | "active";
-
-type UpgradeValidationResult =
-  | { ok: true; cascadeId: string }
-  | { ok: false; code: "not_found" | "forbidden_origin" };
 
 function unrefTimer(
   timer: ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>,
@@ -131,6 +127,10 @@ export function buildRecoverableStepDelta(
   };
 }
 
+export type UpgradeValidationResult =
+  | { ok: true; cascadeId: string; targetApp?: string }
+  | { ok: false; code: "not_found" | "forbidden_origin" };
+
 export function isWebSocketOriginAllowed(
   origin: string | undefined,
   allowedOrigins: AllowedOrigin[] = getAllowedOrigins(),
@@ -145,6 +145,7 @@ export function validateWebSocketUpgrade(
   origin: string | undefined,
   port: number,
   allowedOrigins: AllowedOrigin[] = getAllowedOrigins(),
+  headers?: Record<string, string | string[] | undefined>,
 ): UpgradeValidationResult {
   const url = new URL(reqUrl ?? "", `http://localhost:${port}`);
   const match = url.pathname.match(/^\/api\/conversations\/([^/]+)\/ws$/);
@@ -154,7 +155,14 @@ export function validateWebSocketUpgrade(
   if (!isWebSocketOriginAllowed(origin, allowedOrigins)) {
     return { ok: false, code: "forbidden_origin" };
   }
-  return { ok: true, cascadeId: match[1] };
+
+  const targetAppParam = url.searchParams.get("targetApp");
+  const targetAppHeader = Array.isArray(headers?.["x-porta-target-app"])
+    ? headers?.["x-porta-target-app"][0]
+    : headers?.["x-porta-target-app"];
+  const targetApp = targetAppParam || targetAppHeader || undefined;
+
+  return { ok: true, cascadeId: match[1], targetApp };
 }
 
 export function setupWebSocket(
@@ -170,6 +178,7 @@ export function setupWebSocket(
       req.headers.origin,
       port,
       allowedOrigins,
+      req.headers,
     );
 
     if (!upgrade.ok) {
@@ -182,13 +191,18 @@ export function setupWebSocket(
     }
 
     wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req, upgrade.cascadeId);
+      wss.emit("connection", ws, req, upgrade.cascadeId, upgrade.targetApp);
     });
   });
 
   wss.on(
     "connection",
-    (ws: WebSocket, _req: IncomingMessage, cascadeId: string) => {
+    (
+      ws: WebSocket,
+      _req: IncomingMessage,
+      cascadeId: string,
+      targetApp?: string,
+    ) => {
       const shortId = cascadeId.slice(0, 8);
       console.log(`[ws:${shortId}] connected`);
 
@@ -305,6 +319,7 @@ export function setupWebSocket(
             { cascadeId, stepOffset: fetchOffset },
             undefined,
             true,
+            targetApp,
           )) as { steps?: unknown[] };
 
           const newSteps = data.steps ?? [];
@@ -353,7 +368,12 @@ export function setupWebSocket(
             return delta.grew;
           } else if (isRecoverableStepError(err)) {
             try {
-              const { count: total } = await getStepCount(cascadeId, undefined, true);
+              const { count: total } = await getStepCount(
+                cascadeId,
+                undefined,
+                true,
+                targetApp,
+              );
               const nextValid = await findNextValidOffset(
                 cascadeId,
                 Math.max(lastStepCount, minFetchOffset),
@@ -411,6 +431,7 @@ export function setupWebSocket(
             { cascadeId },
             undefined,
             true,
+            targetApp,
           )) as { status?: string };
           return TERMINAL_STATUSES.has(data.status ?? "");
         } catch {
@@ -467,6 +488,7 @@ export function setupWebSocket(
               { cascadeId },
               undefined,
               true,
+              targetApp,
             )) as { status?: string; numTotalSteps?: number };
 
             if (
@@ -512,6 +534,7 @@ export function setupWebSocket(
             { cascadeId },
             undefined,
             true,
+            targetApp,
           )) as { numTotalSteps?: number; status?: string };
 
           const total = data.numTotalSteps ?? 0;

@@ -302,6 +302,25 @@ describe("POST /api/conversations", () => {
     mockScanDiskConversations.mockResolvedValue([]);
   });
 
+  it("does not fall back to a different engine when the selected engine is unavailable", async () => {
+    mockGetInstances.mockResolvedValue([]);
+
+    const res = await app().request("/api/conversations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-porta-target-app": "antigravity",
+      },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "No running Language Server found for antigravity.",
+    });
+    expect(mockRpcCall).not.toHaveBeenCalled();
+  });
+
   it("sets the Antigravity 2.x required trajectory source and caches unscoped hub ownership", async () => {
     const hubLS = makeInstance({ pid: 4, workspaceId: undefined });
     mockGetInstances.mockResolvedValue([hubLS]);

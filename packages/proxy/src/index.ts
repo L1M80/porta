@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAdaptorServer } from "@hono/node-server";
 
-import { discovery } from "./routing.js";
+import { discovery, extractTargetAppDataDir } from "./routing.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerModelRoutes } from "./routes/models.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -23,6 +23,7 @@ import {
 } from "./exposure.js";
 import { getAllowedOrigins, resolveCorsOrigin } from "./origins.js";
 import { setupWebSocket } from "./ws.js";
+import { stopStandaloneCore } from "./core-manager.js";
 
 const PORT = parseInt(process.env.PORTA_PORT ?? "3170", 10);
 const HOST = resolveProxyHost();
@@ -45,7 +46,10 @@ app.use(
 // ── Health ──
 
 app.get("/api/health", async (c) => {
-  const instances = await discovery.getInstances();
+  const instances = await discovery.getInstances(
+    false,
+    extractTargetAppDataDir(c),
+  );
   return c.json({
     status: "ok",
     proxy: { port: PORT, uptime: process.uptime() },
@@ -53,6 +57,7 @@ app.get("/api/health", async (c) => {
       pid: i.pid,
       httpsPort: i.httpsPort,
       workspaceId: i.workspaceId,
+      appDataDir: i.appDataDir,
       source: i.source,
     })),
   });
@@ -92,4 +97,14 @@ void discovery
 
 server.listen(PORT, HOST, () => {
   console.log(`✅ Porta proxy listening on ${listenAddress}`);
+});
+
+process.on("SIGTERM", () => {
+  stopStandaloneCore();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  stopStandaloneCore();
+  process.exit(0);
 });
