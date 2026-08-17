@@ -6,13 +6,30 @@ function previewBody(text: string): string {
   return `${singleLine.slice(0, 117)}...`;
 }
 
+function getTargetAppHeader(): string | undefined {
+  try {
+    const raw = localStorage.getItem("porta:settings");
+    if (!raw) return undefined;
+    const settings = JSON.parse(raw);
+    if (settings.targetApp && settings.targetApp !== "all") {
+      return settings.targetApp;
+    }
+  } catch {
+    // Ignore error
+  }
+  return undefined;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const targetApp = getTargetAppHeader();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...(targetApp ? { "x-porta-target-app": targetApp } : {}),
     ...((options.headers as Record<string, string>) ?? {}),
   };
 
   const res = await fetch(`${API_BASE}${path}`, {
+    cache: "no-store",
     ...options,
     headers,
   });
@@ -50,9 +67,10 @@ export const api = {
       `/api/conversations/${cascadeId}`,
     ),
 
-  /** Fetch steps with optional limit. Returns { steps, offset, stepCount? }. */
-  getSteps: (cascadeId: string, offset = 0, limit?: number, tail?: number) => {
-    const params = new URLSearchParams({ offset: String(offset) });
+  /** Fetch steps with optional limit or tail. Returns { steps, offset, stepCount? }. */
+  getSteps: (cascadeId: string, offset?: number, limit?: number, tail?: number) => {
+    const params = new URLSearchParams();
+    if (offset !== undefined) params.set("offset", String(offset));
     if (limit !== undefined) params.set("limit", String(limit));
     if (tail !== undefined) params.set("tail", String(tail));
     return request<import("../types").StepsPageResponse>(

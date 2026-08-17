@@ -22,6 +22,18 @@ import { dirname, join } from "node:path";
 export const discovery = new LSDiscovery();
 export const rpc = new RPCClient(discovery);
 
+export function extractTargetAppDataDir(c: {
+  req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined };
+}): string | undefined {
+  const val =
+    c.req.header("x-porta-target-app") ||
+    c.req.query("targetApp") ||
+    c.req.query("appDataDir");
+  if (!val || val === "all") return undefined;
+  if (val === "antigravity" || val === "antigravity-ide") return val;
+  return undefined;
+}
+
 const AFFINITY_FILE = join(
   homedir(),
   ".gemini",
@@ -160,6 +172,7 @@ export async function rpcForConversation<T>(
   /** Allow try-all fallback for disk-only .pb reads. Must be false for
    *  mutation RPCs to prevent writes to the wrong LS. */
   readOnly = false,
+  targetAppDataDir?: string,
 ): Promise<T> {
   const result = await resolveAndCall<T>(
     method,
@@ -167,6 +180,7 @@ export async function rpcForConversation<T>(
     body,
     pinnedInstance,
     readOnly,
+    targetAppDataDir,
   );
   return result.data;
 }
@@ -238,6 +252,16 @@ export async function discoverOwnerInstance(
 
   // Determine the conversation's workspace URI (consistent across candidates)
   const wsUri = candidates.find((c) => c.wsUri)?.wsUri;
+  if (wsUri) {
+    const wsId = uriToWorkspaceId(wsUri);
+    conversationAffinity.set(cascadeId, wsId);
+  }
+
+  // If exactly one LS returned this trajectory in GetAllCascadeTrajectories, it is the owner
+  if (candidates.length === 1) {
+    conversationInstanceAffinity.set(cascadeId, candidates[0].inst);
+    return candidates[0].inst;
+  }
 
   if (wsUri) {
     const wsId = uriToWorkspaceId(wsUri);
@@ -249,6 +273,7 @@ export async function discoverOwnerInstance(
     );
     if (wsOwners.length > 0) {
       wsOwners.sort((a, b) => b.stepCount - a.stepCount);
+      conversationInstanceAffinity.set(cascadeId, wsOwners[0].inst);
       return wsOwners[0].inst;
     }
 
@@ -272,25 +297,15 @@ export async function discoverOwnerInstance(
       conversationInstanceAffinity.set(cascadeId, unscopedOwners[0].inst);
       return unscopedOwners[0].inst;
     }
+    if (candidates.length === 1) {
+      conversationInstanceAffinity.set(cascadeId, candidates[0].inst);
+      return candidates[0].inst;
+    }
     return null;
   }
 
   // No workspace metadata.
-  //
-  // For writes (readOnly=false): return null. Without a workspace URI we
-  // cannot determine definitive ownership. Returning a heuristic guess
-  // here would let mutations (SendUserCascadeMessage, RevertToCascadeStep,
-  // etc.) reach a non-owner LS — the exact bug this guard prevents.
-  //
-  // For reads (readOnly=true): use RUNNING status + stepCount heuristics.
-  // A RUNNING LS is definitively the active owner (only one LS can execute
-  // a conversation at a time). Affinity is NOT learned because we don't
-  // know the workspace URI.
-  if (
-    !readOnly &&
-    candidates.length === 1 &&
-    !candidates[0].inst.workspaceId
-  ) {
+  if (candidates.length === 1) {
     conversationInstanceAffinity.set(cascadeId, candidates[0].inst);
     return candidates[0].inst;
   }
@@ -303,6 +318,7 @@ export async function discoverOwnerInstance(
     if (aRunning !== bRunning) return bRunning - aRunning;
     return b.stepCount - a.stepCount;
   });
+  conversationInstanceAffinity.set(cascadeId, candidates[0].inst);
   return candidates[0].inst;
 }
 
@@ -325,6 +341,7 @@ export async function resolveAndCall<T>(
    *  Must be false for mutation RPCs and when the returned instance
    *  will be pinned for subsequent writes. */
   readOnly = false,
+  targetAppDataDir?: string,
 ): Promise<{ data: T; instance: LSInstance }> {
   // If caller pinned a specific instance, use it directly
   if (pinnedInstance) {
@@ -332,7 +349,7 @@ export async function resolveAndCall<T>(
     return { data, instance: pinnedInstance };
   }
 
-  const instances = await discovery.getInstances();
+  const instances = await discovery.getInstances(false, targetAppDataDir);
   if (instances.length === 0) {
     throw new RPCError("No LS instances available", "unavailable");
   }
@@ -398,21 +415,10 @@ export async function resolveAndCall<T>(
     return { data, instance: owner };
   }
 
-  // Fallback for read-only operations: conversation not in any LS's memory
-  // (disk-only .pb file). Try all instances — the LS will auto-load from
-  // disk if the .pb exists in its conversation store.
-  //
-  // Restricted to reads because multiple LSes can load the same .pb from
-  // the shared conversations dir. The first success doesn't prove ownership,
-  // so routing a write here could mutate state on the wrong LS.
-  //
-  // Since discoverOwnerInstance now handles the "candidates in memory but
-  // no workspace metadata" case (using RUNNING status), this path is only
-  // reached for truly unknown conversations (no LS has them in
-  // GetAllCascadeTrajectories). All LSes will load the same .pb from disk,
-  // so they're functionally equivalent. We still sort by RUNNING > stepCount
-  // as defense-in-depth.
-  if (readOnly) {
+  // Fallback for read-only operations or targetAppDataDir with single instance:
+  // conversation not in any LS's memory (disk-only .pb file).
+  // Try available instances — the LS will auto-load from disk if the .pb exists.
+  if (readOnly || (targetAppDataDir && instances.length === 1)) {
     const results: { data: T; instance: LSInstance; isRunning: boolean; stepCount: number }[] = [];
     const errors: unknown[] = [];
     await Promise.allSettled(
@@ -454,8 +460,9 @@ export async function resolveAndCall<T>(
 export async function rpcAny<T>(
   method: string,
   body: Record<string, unknown> = {},
+  targetAppDataDir?: string,
 ): Promise<T> {
-  const instances = await discovery.getInstances();
+  const instances = await discovery.getInstances(false, targetAppDataDir);
   let lastError: unknown;
   for (const inst of instances) {
     try {
@@ -480,6 +487,7 @@ export async function getStepCount(
    *  Use false (default) when the instance may be reused for mutations
    *  (e.g. SendUserCascadeMessage) to prevent writes to the wrong LS. */
   readOnly = false,
+  targetAppDataDir?: string,
 ): Promise<{ count: number; instance: LSInstance | undefined }> {
   try {
     const result = await resolveAndCall<{ numTotalSteps?: number }>(
@@ -488,6 +496,7 @@ export async function getStepCount(
       { cascadeId },
       pinnedInstance,
       readOnly,
+      targetAppDataDir,
     );
     return { count: result.data.numTotalSteps ?? 0, instance: result.instance };
   } catch {

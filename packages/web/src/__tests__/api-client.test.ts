@@ -10,6 +10,7 @@ async function loadApi(env: Record<string, string> = {}) {
 
 describe("api client", () => {
   afterEach(() => {
+    localStorage.clear();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
@@ -89,6 +90,33 @@ describe("api client", () => {
     expect(fetchStub).toHaveBeenCalledWith(
       "https://api.example.test/api/health",
       expect.anything(),
+    );
+  });
+
+  it("sends the selected target engine on API requests", async () => {
+    localStorage.setItem(
+      "porta:settings",
+      JSON.stringify({ targetApp: "antigravity-ide" }),
+    );
+    const fetchStub = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ trajectorySummaries: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchStub);
+
+    const api = await loadApi();
+    await api.conversations();
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      "/api/conversations",
+      expect.objectContaining({
+        cache: "no-store",
+        headers: expect.objectContaining({
+          "x-porta-target-app": "antigravity-ide",
+        }),
+      }),
     );
   });
 });
