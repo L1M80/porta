@@ -4,7 +4,7 @@ import type { ProcessDiscoveryCandidate } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const LANGUAGE_SERVER_EXECUTABLE =
-  /(?:^|[\\/])language_server(?:_[^/\\\s"']+)?(?:\.exe)?$/i;
+  /(?:^|[\\/])(language_server(?:_[^/\\\s"']+)?|agy)(?:\.exe)?$/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -70,8 +70,15 @@ export function parseCommandCandidate(
     return undefined;
   }
 
-  const csrfToken = parseArgValue(args, "--csrf_token");
-  if (!csrfToken) return undefined;
+  let csrfToken = parseArgValue(args, "--csrf_token");
+  if (!csrfToken) {
+    const basename = executable.replace(/^.*[\\/]/, '').toLowerCase();
+    if (basename === "agy" || basename === "agy.exe") {
+      csrfToken = "agy_no_csrf";
+    } else {
+      return undefined;
+    }
+  }
   const appDataDir = parseArgValue(args, "--app_data_dir");
 
   return {
@@ -152,7 +159,7 @@ export function parseSsPorts(output: string, pid: number): number[] {
   for (const rawLine of output.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
-    if (!line.includes(`pid=${pid},`) || !line.includes("language_server")) {
+    if (!line.includes(`pid=${pid},`) || (!line.includes("language_server") && !line.includes("agy"))) {
       continue;
     }
 

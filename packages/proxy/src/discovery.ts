@@ -21,6 +21,7 @@ import {
   rememberSuccessfulTransport,
   type TransportProtocol,
 } from "./transport-hints.js";
+import { ensureStandaloneCore } from "./core-manager.js";
 
 export interface LSInstance {
   pid: number;
@@ -42,6 +43,10 @@ const DAEMON_DIRS = [
   {
     dir: join(homedir(), ".gemini", "antigravity-ide", "daemon"),
     appDataDir: "antigravity-ide",
+  },
+  {
+    dir: join(homedir(), ".gemini", "antigravity-cli", "daemon"),
+    appDataDir: "antigravity-cli",
   },
 ];
 const SERVICE_PREFIX = "exa.language_server_pb.LanguageServerService";
@@ -405,7 +410,16 @@ export class LSDiscovery {
   }
 
   protected async discover(): Promise<LSInstance[]> {
-    return discoverInstances();
+    let instances = await discoverInstances();
+    if (instances.length === 0) {
+      await ensureStandaloneCore();
+      instances = await discoverInstances();
+    }
+    return instances;
+  }
+
+  invalidateCache(): void {
+    this.lastDiscovery = 0;
   }
 
   async getInstances(

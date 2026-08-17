@@ -35,7 +35,7 @@ import { conversationSignals } from "./signals.js";
 /** Active polling interval (ms). */
 const ACTIVE_INTERVAL = 200;
 /** Idle polling interval (ms) for externally-originated updates. */
-const HEARTBEAT_INTERVAL = 5000;
+const HEARTBEAT_INTERVAL = 1000;
 /** Transport keepalive interval (ms) for detecting dead idle sockets. */
 const SOCKET_KEEPALIVE_INTERVAL = 25_000;
 

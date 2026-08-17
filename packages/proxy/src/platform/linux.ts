@@ -52,7 +52,7 @@ export const linuxAdapter: PlatformAdapter = {
 
     try {
       const comm = await readFile(join("/proc", String(pid), "comm"), "utf-8");
-      return comm.includes("language_server");
+      return comm.includes("language_server") || comm.includes("agy");
     } catch {
       return false;
     }
