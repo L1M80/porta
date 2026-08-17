@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Production previews retain Vite host validation by default while still
   supporting explicitly configured allowed hosts. (#127)
+- Updated React Router and Hono to versions containing upstream fixes for
+  remote code execution, cross-site scripting, denial-of-service, and related
+  request-handling vulnerabilities.
 
 ## [0.15.0] - 2026-08-03
 
