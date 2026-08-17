@@ -42,6 +42,7 @@ class MockWebSocket {
 describe("useStepsStream", () => {
   beforeEach(() => {
     MockWebSocket.instances = [];
+    sessionStorage.clear();
     vi.restoreAllMocks();
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
     Object.defineProperty(document, "hidden", {
@@ -51,6 +52,7 @@ describe("useStepsStream", () => {
   });
 
   afterEach(() => {
+    sessionStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     Object.defineProperty(document, "hidden", {
@@ -73,6 +75,14 @@ describe("useStepsStream", () => {
       expect(getSteps).toHaveBeenCalledTimes(1);
       expect(MockWebSocket.instances).toHaveLength(1);
     });
+
+    expect(getSteps).toHaveBeenNthCalledWith(
+      1,
+      "cascade-1",
+      0,
+      undefined,
+      100,
+    );
 
     await waitFor(() => {
       expect(MockWebSocket.instances[0].sent).toContain(
@@ -104,5 +114,56 @@ describe("useStepsStream", () => {
     });
 
     expect(getConversation).not.toHaveBeenCalled();
+  });
+
+  it("shows cached steps while the background refresh is pending", () => {
+    sessionStorage.setItem(
+      "porta:steps:antigravity-ide:cascade-1",
+      JSON.stringify({
+        offset: 42,
+        steps: [{ type: "CORTEX_STEP_TYPE_USER_INPUT" }],
+      }),
+    );
+    vi.spyOn(api, "getSteps").mockReturnValue(new Promise(() => {}));
+
+    const { result, unmount } = renderHook(() =>
+      useStepsStream(
+        "cascade-1",
+        0,
+        undefined,
+        false,
+        false,
+        "antigravity-ide",
+      ),
+    );
+
+    expect(result.current.steps).toEqual([
+      { type: "CORTEX_STEP_TYPE_USER_INPUT" },
+    ]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.hasMore).toBe(true);
+    unmount();
+  });
+
+  it("routes the WebSocket to the selected engine", async () => {
+    vi.spyOn(api, "getSteps").mockResolvedValue({ steps: [], offset: 0 });
+
+    renderHook(() =>
+      useStepsStream(
+        "cascade-1",
+        0,
+        undefined,
+        false,
+        false,
+        "antigravity-ide",
+      ),
+    );
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
+    expect(MockWebSocket.instances[0].url).toContain(
+      "/api/conversations/cascade-1/ws?targetApp=antigravity-ide",
+    );
   });
 });

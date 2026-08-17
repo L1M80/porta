@@ -11,12 +11,14 @@ function escapeRegExp(value: string): string {
 }
 
 function parseExecutable(args: string): string | undefined {
-  const match = args.match(/^(?:"([^"]+)"|'([^']+)'|(\S+))(?:\s|$)/);
-  return match?.[1] ?? match?.[2] ?? match?.[3];
+  const match = args.match(/^(?:["']?([^"']+)["']?)/);
+  const raw = match?.[1] ?? args;
+  const lsMatch = raw.match(/^(.*?language_server[^\s]*)/i);
+  return (lsMatch?.[1] ?? raw).trim();
 }
 
 export function isLanguageServerExecutable(value: string): boolean {
-  return LANGUAGE_SERVER_EXECUTABLE.test(value.trim());
+  return /(?:^|[\\/])language_server(?:_[^/\\\s"']+)?(?:\.exe)?$/i.test(value.trim());
 }
 
 function parseArgValue(args: string, flag: string): string | undefined {
@@ -180,7 +182,7 @@ export function parseLsofPorts(output: string): number[] {
     const line = rawLine.trim();
     if (!line || !line.includes("(LISTEN)")) continue;
 
-    const match = line.match(/:(\d+)\s+\(LISTEN\)$/);
+    const match = line.match(/:(\d+)\s+\(LISTEN\)/);
     if (!match) continue;
 
     const port = parseInt(match[1], 10);
