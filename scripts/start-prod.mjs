@@ -2,10 +2,13 @@ import path from "node:path";
 import {
   commandName,
   ensureLogsDir,
+  loadEnvFile,
   spawnLoggedProcess,
   terminateChild,
   waitForExit,
 } from "./common.mjs";
+
+loadEnvFile();
 
 const logsDir = ensureLogsDir();
 const runners = [
@@ -16,27 +19,27 @@ const runners = [
     path.join(logsDir, "proxy.log"),
     {
       NODE_ENV: "production",
-      PORTA_HOST: "127.0.0.1",
-      PORTA_PORT: "3170",
-      PORTA_CORS_ORIGINS: "https://gemini.ygggt.com",
+      PORTA_HOST: process.env.PORTA_HOST || "127.0.0.1",
+      PORTA_PORT: process.env.PORTA_PORT || "3170",
     }
   ),
   spawnLoggedProcess(
     "web",
     commandName("pnpm"),
-    ["--filter", "@porta/web", "preview", "--host", "127.0.0.1", "--port", "5173"],
+    ["--filter", "@porta/web", "preview"],
     path.join(logsDir, "web.log"),
     {
       NODE_ENV: "production",
-      PORTA_HOST: "127.0.0.1",
-      PORTA_PORT: "3170",
-      PORTA_WEB_PORT: "5173",
-      PORTA_ALLOWED_HOSTS: "*",
+      PORTA_HOST: process.env.PORTA_HOST || "127.0.0.1",
+      PORTA_PORT: process.env.PORTA_PORT || "3170",
+      PORTA_WEB_PORT: process.env.PORTA_WEB_PORT || "5173",
     }
   ),
 ];
 
-console.log("✓ Porta production running - proxy on :3170, web on :5173");
+console.log(
+  `✓ Porta production running - proxy on :${process.env.PORTA_PORT || "3170"}, web on :${process.env.PORTA_WEB_PORT || "5173"}`,
+);
 
 let shuttingDown = false;
 
