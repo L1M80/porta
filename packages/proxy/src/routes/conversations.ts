@@ -475,7 +475,12 @@ export function registerConversationRoutes(app: Hono): void {
           } else if (isRecoverableStepError(fetchErr)) {
             // Corrupted batch (e.g. invalid UTF-8) — binary search forward
             if (stepCount === undefined) {
-              const sc = await getStepCount(id, undefined, true);
+              const sc = await getStepCount(
+                id,
+                undefined,
+                true,
+                targetApp,
+              );
               stepCount = sc.count;
               pinnedInstance ??= sc.instance;
             }
@@ -532,6 +537,17 @@ export function registerConversationRoutes(app: Hono): void {
           : bodyWorkspaceUris[0];
       const targetApp = extractTargetAppDataDir(c);
       const instances = await discovery.getInstances(false, targetApp);
+
+      if (instances.length === 0) {
+        return c.json(
+          {
+            error: targetApp
+              ? `No running Language Server found for ${targetApp}.`
+              : "No running Language Server found.",
+          },
+          503,
+        );
+      }
 
       // Resolve which LS instance to use based on workspace URI
       let targetInstance: LSInstance | undefined;

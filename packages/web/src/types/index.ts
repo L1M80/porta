@@ -42,6 +42,7 @@ export interface HealthResponse {
     pid: number;
     httpsPort: number;
     workspaceId?: string;
+    appDataDir?: string;
     source: string;
   }[];
 }

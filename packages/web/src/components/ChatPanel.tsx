@@ -41,10 +41,11 @@ import {
   IconAlertTriangle,
   IconChevron,
 } from "./Icons";
-import type { AskQuestionEntry, ChatMessage } from "../types";
+import type { AskQuestionEntry, ChatMessage, TargetApp } from "../types";
 
 interface Props {
   cascadeId: string;
+  targetApp?: TargetApp;
   onRevert: (stepIndex: number, editText?: string) => void;
   onFilePermission: (
     trajectoryId: string,
@@ -543,6 +544,7 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
 
 export function ChatPanel({
   cascadeId,
+  targetApp = "all",
   onRevert,
   onFilePermission,
   onCommandAction,
@@ -572,6 +574,7 @@ export function ChatPanel({
     onSidebarRefresh,
     isConversationRunning,
     browserNotificationsEnabled,
+    targetApp,
   );
 
   useChatNotifications({

@@ -79,6 +79,20 @@ describe("WS upgrade validation", () => {
     ).toEqual({ ok: true, cascadeId: "abc123" });
   });
 
+  it("keeps the selected target on the WebSocket upgrade", () => {
+    expect(
+      validateWebSocketUpgrade(
+        "/api/conversations/abc123/ws?targetApp=antigravity-ide",
+        "http://localhost:5173",
+        3100,
+      ),
+    ).toEqual({
+      ok: true,
+      cascadeId: "abc123",
+      targetApp: "antigravity-ide",
+    });
+  });
+
   it("rejects cross-origin upgrades on the WS endpoint", () => {
     const allowedOrigins = getAllowedOrigins({});
 

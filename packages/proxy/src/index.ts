@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAdaptorServer } from "@hono/node-server";
 
-import { discovery } from "./routing.js";
+import { discovery, extractTargetAppDataDir } from "./routing.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerModelRoutes } from "./routes/models.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -45,7 +45,10 @@ app.use(
 // ── Health ──
 
 app.get("/api/health", async (c) => {
-  const instances = await discovery.getInstances();
+  const instances = await discovery.getInstances(
+    false,
+    extractTargetAppDataDir(c),
+  );
   return c.json({
     status: "ok",
     proxy: { port: PORT, uptime: process.uptime() },

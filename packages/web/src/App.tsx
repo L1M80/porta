@@ -77,7 +77,10 @@ function ChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 480);
   const isMobile = () => window.innerWidth <= 480;
   const { conversations, loading, refresh, optimisticRemove } = useConversations(15_000);
-  const { data: health } = usePolling<HealthResponse>(api.health, 30_000);
+  const { data: health, refresh: refreshHealth } = usePolling<HealthResponse>(
+    api.health,
+    30_000,
+  );
 
   // ── Hooks ──
   const { workspaces, currentWorkspaceUri } = useWorkspaces(
@@ -86,6 +89,14 @@ function ChatView() {
   );
   const { draftText, handleDraftChange } = useDraftText(activeId);
   const { settings, updateSettings } = useClientSettings();
+
+  const previousTargetApp = useRef(settings.targetApp);
+  useEffect(() => {
+    if (previousTargetApp.current === settings.targetApp) return;
+    previousTargetApp.current = settings.targetApp;
+    refresh();
+    refreshHealth();
+  }, [refresh, refreshHealth, settings.targetApp]);
 
   const activeConv = conversations.find((c) => c.id === activeId);
   const isRunning = activeConv?.summary.status === "CASCADE_RUN_STATUS_RUNNING";
@@ -300,10 +311,7 @@ function ChatView() {
           title={headerTitle}
           projectName={projectSlug ?? undefined}
           targetApp={settings.targetApp}
-          onTargetAppChange={(app) => {
-            updateSettings({ targetApp: app });
-            setTimeout(() => refresh(), 50);
-          }}
+          onTargetAppChange={(app) => updateSettings({ targetApp: app })}
           onMenuToggle={() => setSidebarOpen(true)}
         />
         {isSettingsPage ? (
@@ -314,8 +322,9 @@ function ChatView() {
           />
         ) : activeId ? (
           <ChatPanel
-            key={activeId}
+            key={`${activeId}:${settings.targetApp}`}
             cascadeId={activeId}
+            targetApp={settings.targetApp}
             onRevert={handleRevert}
             onFilePermission={handleFilePermission}
             onCommandAction={handleCommandAction}
