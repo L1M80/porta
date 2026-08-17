@@ -23,6 +23,7 @@ import {
 } from "./exposure.js";
 import { getAllowedOrigins, resolveCorsOrigin } from "./origins.js";
 import { setupWebSocket } from "./ws.js";
+import { stopStandaloneCore } from "./core-manager.js";
 
 const PORT = parseInt(process.env.PORTA_PORT ?? "3170", 10);
 const HOST = resolveProxyHost();
@@ -96,4 +97,14 @@ void discovery
 
 server.listen(PORT, HOST, () => {
   console.log(`✅ Porta proxy listening on ${listenAddress}`);
+});
+
+process.on("SIGTERM", () => {
+  stopStandaloneCore();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  stopStandaloneCore();
+  process.exit(0);
 });
