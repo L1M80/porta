@@ -1,10 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { TrajectoryStep } from "../types";
+import type { TargetApp, TrajectoryStep } from "../types";
 import { useAppResume } from "./useAppResume";
 
 /** How many steps to fetch on initial load and each lazy-load page. */
 const PAGE_SIZE = 100;
+
+interface CachedStepsPage {
+  offset: number;
+  steps: TrajectoryStep[];
+}
+
+function stepsCacheKey(cascadeId: string, targetApp: TargetApp): string {
+  return `porta:steps:${targetApp}:${cascadeId}`;
+}
+
+function readCachedSteps(
+  cascadeId: string,
+  targetApp: TargetApp,
+): CachedStepsPage {
+  try {
+    const cached = sessionStorage.getItem(stepsCacheKey(cascadeId, targetApp));
+    if (!cached) return { offset: 0, steps: [] };
+
+    const parsed = JSON.parse(cached) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      typeof (parsed as CachedStepsPage).offset === "number" &&
+      Array.isArray((parsed as CachedStepsPage).steps)
+    ) {
+      return parsed as CachedStepsPage;
+    }
+  } catch {
+    // Corrupt or unavailable session storage should fall back to the network.
+  }
+  return { offset: 0, steps: [] };
+}
 
 interface UseStepsStreamResult {
   /** All loaded steps (ordered oldest → newest). */
@@ -45,24 +78,46 @@ export function useStepsStream(
   onIdleTransition?: () => void,
   isConversationRunning = false,
   keepAliveWhenHidden = false,
+  targetApp: TargetApp = "all",
 ): UseStepsStreamResult {
-  const [steps, setSteps] = useState<TrajectoryStep[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialCachedPage] = useState(() =>
+    readCachedSteps(cascadeId, targetApp),
+  );
+  const [steps, setSteps] = useState<TrajectoryStep[]>(
+    initialCachedPage.steps,
+  );
+  const [loading, setLoading] = useState(initialCachedPage.steps.length === 0);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialCachedPage.offset > 0);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [wsRunning, setWsRunning] = useState(false);
 
   const mountedRef = useRef(true);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stepsRef = useRef<TrajectoryStep[]>([]);
+  const stepsRef = useRef<TrajectoryStep[]>(initialCachedPage.steps);
   // The absolute offset of stepsRef[0] in the full trajectory.
-  const baseOffsetRef = useRef(0);
+  const baseOffsetRef = useRef(initialCachedPage.offset);
   // The exact offset of the NEXT step AFTER the end of stepsRef.
-  const endOffsetRef = useRef(0);
+  const endOffsetRef = useRef(
+    initialCachedPage.offset + initialCachedPage.steps.length,
+  );
   // Monotonic generation counter — prevents stale responses from overwriting.
   const genRef = useRef(0);
+
+  const saveStepsToCache = useCallback(
+    (newSteps: TrajectoryStep[], offset: number) => {
+      try {
+        sessionStorage.setItem(
+          stepsCacheKey(cascadeId, targetApp),
+          JSON.stringify({ offset, steps: newSteps }),
+        );
+      } catch {
+        // Ignore quota errors.
+      }
+    },
+    [cascadeId, targetApp],
+  );
   const bumpGeneration = useCallback(() => {
     genRef.current += 1;
   }, []);
@@ -86,8 +141,8 @@ export function useStepsStream(
   const initialFetch = useCallback(async () => {
     const gen = genRef.current;
     try {
-      // Calculate starting offset from the known total step count.
-      // If we don't know the count, we use the `tail` parameter to let the proxy compute it.
+      // Prefer the latest page. If the sidebar has not supplied a count yet,
+      // let the proxy calculate the tail offset.
       const isUnknown = totalRef.current === 0;
       const startOffset = isUnknown
         ? 0
@@ -113,6 +168,7 @@ export function useStepsStream(
       endOffsetRef.current = offset + fetchedSteps.length;
       stepsRef.current = fetchedSteps;
       setSteps([...fetchedSteps]);
+      saveStepsToCache(fetchedSteps, offset);
       setHasMore(offset > 0);
       setLoading(false);
       setError(null);
@@ -125,7 +181,7 @@ export function useStepsStream(
       setLoading(false);
       return null;
     }
-  }, [cascadeId]);
+  }, [cascadeId, saveStepsToCache]);
 
   // ── WS: connect for deltas ──
   const connectWs = useCallback(
@@ -139,13 +195,17 @@ export function useStepsStream(
       }
 
       const apiBase = import.meta.env.VITE_API_BASE ?? "";
+      const targetQuery =
+        targetApp === "all"
+          ? ""
+          : `?targetApp=${encodeURIComponent(targetApp)}`;
       let url: string;
       if (apiBase) {
         const wsBase = apiBase.replace(/^http/, "ws");
-        url = `${wsBase}/api/conversations/${cascadeId}/ws`;
+        url = `${wsBase}/api/conversations/${cascadeId}/ws${targetQuery}`;
       } else {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        url = `${protocol}//${window.location.host}/api/conversations/${cascadeId}/ws`;
+        url = `${protocol}//${window.location.host}/api/conversations/${cascadeId}/ws${targetQuery}`;
       }
       const gen = genRef.current;
 
@@ -213,6 +273,7 @@ export function useStepsStream(
                 stepsRef.current = updated;
                 endOffsetRef.current = deltaOffset + newSteps.length;
                 setSteps([...updated]);
+                saveStepsToCache(updated, baseOffsetRef.current);
               }
               // If relOffset < 0, the delta is for steps before our window
               // (shouldn't happen in practice — ignore)
@@ -269,20 +330,22 @@ export function useStepsStream(
         // WS not available — no real-time updates
       }
     },
-    [cascadeId, clearReconnectTimer, keepAliveWhenHidden],
+    [
+      cascadeId,
+      clearReconnectTimer,
+      keepAliveWhenHidden,
+      saveStepsToCache,
+      targetApp,
+    ],
   );
 
   // ── Lifecycle: fetch + connect ──
   useEffect(() => {
     mountedRef.current = true;
     bumpGeneration();
-    stepsRef.current = [];
-    baseOffsetRef.current = 0;
-    endOffsetRef.current = 0;
-    setSteps([]);
-    setLoading(true);
+    setLoading(stepsRef.current.length === 0);
     setError(null);
-    setHasMore(false);
+    setHasMore(baseOffsetRef.current > 0);
 
     (async () => {
       const result = await initialFetch();
@@ -353,6 +416,7 @@ export function useStepsStream(
       baseOffsetRef.current = actualOffset;
       stepsRef.current = [...olderSteps, ...stepsRef.current];
       setSteps([...stepsRef.current]);
+      saveStepsToCache(stepsRef.current, actualOffset);
       setHasMore(actualOffset > 0);
 
       return olderSteps.length;
@@ -363,7 +427,7 @@ export function useStepsStream(
     } finally {
       if (mountedRef.current) setLoadingOlder(false);
     }
-  }, [cascadeId, loadingOlder]);
+  }, [cascadeId, loadingOlder, saveStepsToCache]);
 
   const syncLatestSteps = useCallback(
     async (reconnectMode: "always" | "if-running") => {
@@ -391,6 +455,7 @@ export function useStepsStream(
           endOffsetRef.current = fetchedOffset + fetchedSteps.length;
           stepsRef.current = fetchedSteps;
           setSteps([...fetchedSteps]);
+          saveStepsToCache(fetchedSteps, fetchedOffset);
           setHasMore(fetchedOffset > 0);
           setLoading(false);
         } else {
@@ -412,6 +477,7 @@ export function useStepsStream(
           endOffsetRef.current = Math.max(currentEnd, fetchedEnd);
           stepsRef.current = merged;
           setSteps([...merged]);
+          saveStepsToCache(merged, newBase);
           setHasMore(newBase > 0);
         }
         setError(null);
@@ -442,7 +508,7 @@ export function useStepsStream(
         console.error("Soft refresh failed:", err);
       }
     },
-    [cascadeId, connectWs],
+    [cascadeId, connectWs, saveStepsToCache],
   );
 
   // ── Soft refresh: merge new steps without clearing existing messages ──
@@ -464,6 +530,7 @@ export function useStepsStream(
     baseOffsetRef.current = 0;
     endOffsetRef.current = 0;
     setSteps([]);
+    saveStepsToCache([], 0);
     setLoading(true);
     setError(null);
     setHasMore(false);
@@ -480,7 +547,7 @@ export function useStepsStream(
       const syncFrom = result.offset + result.count;
       connectWs(syncFrom);
     })();
-  }, [initialFetch, connectWs, clearReconnectTimer]);
+  }, [initialFetch, connectWs, clearReconnectTimer, saveStepsToCache]);
 
   return {
     steps,

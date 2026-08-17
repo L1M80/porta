@@ -10,6 +10,7 @@ const mockRpcCall = vi.fn<
 vi.mock("../routing.js", () => ({
   discovery: { getInstances: mockGetInstances },
   rpc: { call: mockRpcCall },
+  extractTargetAppDataDir: () => undefined,
 }));
 
 const { registerWorkspaceRoutes } = await import("../routes/workspaces.js");

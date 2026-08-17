@@ -16,7 +16,7 @@ import {
   requestBrowserNotificationPermission,
   type BrowserNotificationPermission,
 } from "../utils/browserNotifications";
-import type { ClientSettings } from "../types";
+import type { ClientSettings, TargetApp } from "../types";
 import type { PlannerType } from "./ChatInput";
 
 interface ModelConfig {
@@ -119,11 +119,20 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
     [onUpdate, flashSaved],
   );
 
+  const handleTargetAppChange = useCallback(
+    (value: string) => {
+      onUpdate({ targetApp: value as TargetApp });
+      flashSaved();
+    },
+    [onUpdate, flashSaved],
+  );
+
   const handleReset = useCallback(() => {
     onUpdate({
       defaultModel: null,
       defaultPlannerType: "conversational",
       browserNotificationsEnabled: false,
+      targetApp: "all",
     });
     flashSaved();
   }, [onUpdate, flashSaved]);
@@ -158,6 +167,27 @@ export function SettingsPanel({ settings, onUpdate, onBack }: Props) {
       </div>
 
       <div className="settings-body">
+        {/* ── Target AI Engine ── */}
+        <div className="settings-section">
+          <h2 className="settings-section-title">Target AI Engine</h2>
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Language Server Target</span>
+              <span className="settings-row-desc">
+                Choose whether to connect to Antigravity 2, Antigravity IDE, or both.
+              </span>
+            </div>
+            <select
+              className="settings-select"
+              value={settings.targetApp ?? "all"}
+              onChange={(e) => handleTargetAppChange(e.target.value)}
+            >
+              <option value="all">🌐 All Engines</option>
+              <option value="antigravity">🚀 Antigravity 2</option>
+              <option value="antigravity-ide">⚡ Antigravity IDE</option>
+            </select>
+          </div>
+        </div>
         {/* ── Model ── */}
         <div className="settings-section">
           <h2 className="settings-section-title">Model</h2>
