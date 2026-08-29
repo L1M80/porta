@@ -181,6 +181,25 @@ cloudflared tunnel create <YOUR_TUNNEL_NAME>
 cloudflared tunnel route dns <YOUR_TUNNEL_NAME> <YOUR_API_SUBDOMAIN>
 ```
 
+Then add an ingress rule to your `cloudflared` config so the named tunnel sends
+traffic to Porta's proxy:
+
+```yaml
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /path/to/<YOUR_TUNNEL_ID>.json
+
+ingress:
+  - hostname: <YOUR_API_SUBDOMAIN>
+    service: http://127.0.0.1:3170
+  - service: http_status:404
+```
+
+You can verify the config resolves to the proxy before starting the tunnel:
+
+```bash
+cloudflared tunnel --config /path/to/config.yml ingress rule https://<YOUR_API_SUBDOMAIN>/api/health
+```
+
 ### 3. Create `.env.production`
 
 Create `.env.production` in the repo root for the web build:
