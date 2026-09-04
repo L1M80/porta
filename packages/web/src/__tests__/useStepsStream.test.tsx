@@ -166,4 +166,47 @@ describe("useStepsStream", () => {
       "/api/conversations/cascade-1/ws?targetApp=antigravity-ide",
     );
   });
+
+  it("keeps the selected engine when reconnecting on resume", async () => {
+    vi.spyOn(api, "getSteps").mockResolvedValue({ steps: [], offset: 0 });
+
+    renderHook(() =>
+      useStepsStream(
+        "cascade-1",
+        0,
+        undefined,
+        false,
+        false,
+        "antigravity-ide",
+      ),
+    );
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
+
+    act(() => {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    act(() => {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: false,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(2);
+    });
+
+    expect(MockWebSocket.instances[1].url).toContain(
+      "/api/conversations/cascade-1/ws?targetApp=antigravity-ide",
+    );
+  });
 });
