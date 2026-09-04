@@ -2,6 +2,19 @@ packages:
   - packages/proxy
   - packages/web
 
+overrides:
+  '@babel/core@<=7.29.0': 7.29.7
+  '@humanfs/node@<0.16.8': 0.16.8
+  'brace-expansion@<1.1.18': 1.1.18
+  'brace-expansion@>=4.0.0 <5.0.9': 5.0.9
+  'esbuild@>=0.27.3 <0.28.1': 0.28.2
+  'fast-uri@<3.1.6': 3.1.7
+  'js-yaml@>=4.0.0 <4.3.1': 4.3.1
+  'nanoid@<3.3.18': 3.3.18
+  'postcss@<=8.5.22': 8.5.26
+  'serialize-javascript@>=5.0.0 <7.0.5': 7.1.1
+  'undici@>=7.0.0 <7.29.0': 7.29.0
+
 allowBuilds:
   '@swc/core': true
   esbuild: true
