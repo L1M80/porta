@@ -148,7 +148,7 @@ To avoid stale copy-pasted instructions, follow Cloudflare's current docs:
 - [Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/)
 - [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/setup/)
 
-Use a named tunnel instead if you want a stable `VITE_API_BASE`, a fixed Cloudflare
+Use a named tunnel instead if you want a stable API hostname, a fixed Cloudflare
 Pages deployment, or long-lived remote access.
 
 ### Option B: Named tunnel + Pages (recommended for regular remote use)
@@ -159,7 +159,7 @@ This is the stable pattern for ongoing remote access. It requires:
 - **Cloudflare Tunnel** (`cloudflared`) installed and authenticated
 - A **Cloudflare Pages** project (for hosting the static SPA)
 - A domain managed by **Cloudflare** for the tunnel hostname
-- Optionally, **Cloudflare Zero Trust** for authentication
+- **Cloudflare Zero Trust** for authentication before exposing the API
 
 ### 1. Configure `.env`
 
@@ -170,6 +170,7 @@ Set the proxy runtime and Cloudflare-related variables in `.env`:
 PORTA_CORS_ORIGINS=https://<YOUR_PAGES_DOMAIN>
 PORTA_TUNNEL_NAME=<YOUR_TUNNEL_NAME>
 PORTA_CF_PROJECT=<YOUR_PROJECT_NAME>
+PORTA_CLOUDFLARED_CONFIG=/path/to/config.yml
 ```
 
 ### 2. Create the named tunnel
@@ -181,13 +182,36 @@ cloudflared tunnel create <YOUR_TUNNEL_NAME>
 cloudflared tunnel route dns <YOUR_TUNNEL_NAME> <YOUR_API_SUBDOMAIN>
 ```
 
+Then add an ingress rule to your `cloudflared` config so the named tunnel sends
+traffic to Porta's proxy:
+
+```yaml
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /path/to/<YOUR_TUNNEL_ID>.json
+
+ingress:
+  - hostname: <YOUR_API_SUBDOMAIN>
+    service: http://127.0.0.1:3170
+  - service: http_status:404
+```
+
+Save this file at the path assigned to `PORTA_CLOUDFLARED_CONFIG`. This makes
+sure `pnpm dev:cloud` starts `cloudflared` with the same config you validate.
+
+You can verify the config resolves to the proxy before starting the tunnel:
+
+```bash
+cloudflared tunnel --config /path/to/config.yml ingress rule https://<YOUR_API_SUBDOMAIN>/api/health
+```
+
 ### 3. Create `.env.production`
 
 Create `.env.production` in the repo root for the web build:
 
 ```bash
 # .env.production
-VITE_API_BASE=https://<YOUR_API_SUBDOMAIN>
+# Do not set VITE_API_BASE here. The frontend must use the Pages Edge proxy so
+# Cloudflare Access service credentials are never exposed to the browser.
 # Optional when hosting the web UI below a path such as https://example.com/porta/
 PORTA_BASE_PATH=/porta
 ```
@@ -201,18 +225,13 @@ pnpm deploy
 This uses `PORTA_CF_PROJECT` from `.env`. If you prefer, you can run the
 equivalent `wrangler pages deploy` command manually.
 
-### 5. Start the proxy + named tunnel
+### 5. Secure your API with Cloudflare Access (Zero Trust)
 
-```bash
-pnpm dev:cloud
-```
+Complete this step **before starting the tunnel**. Porta's proxy exposes
+conversation, command approval, file, and raw RPC endpoints and does not provide
+its own authentication. CORS is not an authentication boundary.
 
-This reads `PORTA_TUNNEL_NAME` from `.env` and starts the proxy and
-`cloudflared tunnel run` together.
-
-### 6. Securing your API with Cloudflare Access (Zero Trust)
-
-Exposing your local API to the public internet can be dangerous. To completely lock down your setup, you should protect **both** your frontend and your API using Cloudflare Access. 
+Protect **both** your frontend and your API using Cloudflare Access.
 
 Porta's built-in Edge Proxy securely bridges the two by injecting Machine-to-Machine authentication tokens, completely hiding your backend from the internet.
 
@@ -242,11 +261,36 @@ In your **Cloudflare Zero Trust** dashboard, under **Access > Applications**, yo
 
 **5. Route Frontend Traffic Through the Proxy**
 By default, the Porta frontend tries to fetch the API directly. To force it to use the secure Edge Proxy:
-1. In your `.env.production` file, **remove or comment out** `VITE_API_BASE`. 
+1. Confirm your `.env.production` file does **not** define `VITE_API_BASE`.
 2. Without `VITE_API_BASE`, the frontend falls back to root-relative API paths (`/api/*`), routing traffic through the Cloudflare Pages Edge proxy. `PORTA_BASE_PATH` only changes the frontend asset, router, and PWA paths.
 3. Run `pnpm deploy` again.
 
-> **Backwards Compatibility Note:** If `VITE_API_BASE` is defined, the frontend will bypass the proxy entirely and attempt to communicate directly with the backend. This is fully supported and recommended for local development (LAN access) or deployments where the backend is not protected by Cloudflare Access. Additionally, the proxy will gracefully skip Service Token injection if the `CF_ACCESS_CLIENT_ID` environment variables are missing.
+> **Backwards Compatibility Note:** If `VITE_API_BASE` is defined, the frontend
+> bypasses the Pages Edge proxy and connects directly to the backend. Use this
+> only for local/LAN development or when the backend has its own authentication;
+> never point it at an unprotected public tunnel. The Edge proxy skips Service
+> Token injection when the `CF_ACCESS_CLIENT_ID` variables are missing.
+
+### 6. Start the proxy + named tunnel
+
+Only start the tunnel after the Backend API Access application and its Service
+Auth policy are active:
+
+```bash
+pnpm dev:cloud
+```
+
+This reads `PORTA_TUNNEL_NAME` and `PORTA_CLOUDFLARED_CONFIG` from `.env`, then
+starts the proxy and `cloudflared tunnel run` together.
+
+After the tunnel connects, verify that an unauthenticated request is rejected:
+
+```bash
+curl -I https://<YOUR_API_SUBDOMAIN>/api/health
+```
+
+Expect an Access redirect or a `403` response. A `200` response means the API
+is publicly reachable; stop the tunnel and fix the Access policy before use.
 
 ## Contributing
 
