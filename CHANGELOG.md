@@ -21,9 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Named tunnel setup now requires Cloudflare Access before the proxy is exposed
   and includes an explicit check that unauthenticated API requests are rejected.
   (#135)
-- Updated `brace-expansion`, `fast-uri`, `nanoid`, `postcss`,
-  `serialize-javascript`, and `undici` to patched versions containing upstream
-  security and stability fixes. (#131)
+- Updated the web dependency graph from #131 and enforced patched transitive
+  versions for `@babel/core`, `@humanfs/node`, `brace-expansion`, `esbuild`,
+  `fast-uri`, `js-yaml`, `nanoid`, `postcss`, `serialize-javascript`, and
+  `undici` after the release security audit.
 
 ## [0.16.0] - 2026-08-17
 
