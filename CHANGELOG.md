@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-09-04
+
+### Changed
+
+- Documented the complete Cloudflare named tunnel ingress configuration and
+  validation flow, including explicit custom config path handling. (#135)
+- Added regression coverage for preserving the selected target engine across
+  page reloads and WebSocket reconnection after app resume. (#134)
+
+### Security
+
+- Named tunnel setup now requires Cloudflare Access before the proxy is exposed
+  and includes an explicit check that unauthenticated API requests are rejected.
+  (#135)
+- Updated `brace-expansion`, `fast-uri`, `nanoid`, `postcss`,
+  `serialize-javascript`, and `undici` to patched versions containing upstream
+  security and stability fixes. (#131)
+
 ## [0.16.0] - 2026-08-17
 
 ### Added
