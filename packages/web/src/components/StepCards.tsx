@@ -15,6 +15,7 @@ import type {
   AskQuestionOption,
   AskQuestionRequest,
   FilePermissionRequest,
+  PermissionRequest,
   SubagentDisplayData,
   TrajectoryStep,
 } from "../types";
@@ -157,6 +158,91 @@ export function FilePermissionCard({
               </button>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Web / Tool Permission Card ──
+
+interface PermissionCardProps {
+  step: TrajectoryStep;
+  permissionRequest: PermissionRequest;
+  fallbackStepIndex: number;
+  onPermission?: (
+    trajectoryId: string,
+    stepIndex: number,
+    allow: boolean,
+  ) => Promise<void>;
+}
+
+export function PermissionCard({
+  step,
+  permissionRequest,
+  fallbackStepIndex,
+  onPermission,
+}: PermissionCardProps) {
+  const [responded, setResponded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isWaiting = step.status === "CORTEX_STEP_STATUS_WAITING";
+  const source = step.metadata?.sourceTrajectoryStepInfo;
+  const action = permissionRequest.resource?.action ?? "";
+  const target = permissionRequest.resource?.target ?? "";
+  const toolName = step.metadata?.toolCall?.name;
+  const genericSummary = step.generic?.args?.toolSummary;
+  const description = step.metadata?.toolSummary ??
+    (typeof genericSummary === "string" ? genericSummary : undefined);
+  const detail = permissionRequest.triggerSource?.detail || toolName || action;
+
+  const handleResponse = async (allow: boolean) => {
+    if (!onPermission || responded) return;
+    setResponded(true);
+    setError(null);
+    try {
+      await onPermission(
+        source?.trajectoryId ?? "",
+        source?.stepIndex ?? fallbackStepIndex,
+        allow,
+      );
+    } catch {
+      setResponded(false);
+      setError("Could not send the response. Please try again.");
+    }
+  };
+
+  return (
+    <div className={`chat-block step-card file-permission-card permission-card ${isWaiting ? "cmd-wait" : ""}`}>
+      <div className="step-card-header">
+        <span className="step-card-icon"><IconLock size={12} /></span>
+        <span className="step-card-desc">
+          {action === "read_url"
+            ? "Allow web access to: "
+            : "Allow tool access: "}
+          <code className="step-card-file">{target || toolName || action || "Permission requested"}</code>
+        </span>
+      </div>
+      {(description || detail) && (
+        <div className="step-card-cwd">
+          {description || "Permission requested"}
+          {detail && ` (${detail})`}
+        </div>
+      )}
+      {error && <div className="step-card-cwd" role="alert">{error}</div>}
+      {isWaiting && !responded && onPermission && (
+        <div className="step-card-actions file-permission-actions">
+          <button
+            className="approve-btn file-permission-btn deny"
+            onClick={() => void handleResponse(false)}
+          >
+            Deny
+          </button>
+          <button
+            className="approve-btn file-permission-btn allow-conversation"
+            onClick={() => void handleResponse(true)}
+          >
+            Allow
+          </button>
         </div>
       )}
     </div>

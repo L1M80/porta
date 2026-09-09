@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getFilePermissionRequest } from "../utils/stepCards";
+import { getFilePermissionRequest, getPermissionRequest } from "../utils/stepCards";
 import { showBrowserNotification } from "../utils/browserNotifications";
 import type { TrajectoryStep } from "../types";
 
@@ -76,6 +76,18 @@ function pendingApprovalNotifications(
         key: `file:${identity}:${filePermissionRequest.absolutePathUri}`,
         title: "Porta needs file access",
         body: truncate(path, 120),
+      });
+      return;
+    }
+
+    const permission = getPermissionRequest(step);
+    if (permission && !(step.type === "CORTEX_STEP_TYPE_RUN_COMMAND" && step.runCommand)) {
+      const action = permission.resource?.action ?? "";
+      const target = permission.resource?.target ?? step.metadata?.toolCall?.name ?? "";
+      notifications.push({
+        key: `permission:${identity}:${action}:${target}`,
+        title: "Porta needs approval",
+        body: truncate(target || "Allow or deny tool access.", 120),
       });
       return;
     }

@@ -103,6 +103,31 @@ describe("useChatNotifications", () => {
     );
   });
 
+  it("notifies once for new web and tool permissions", () => {
+    const { rerender } = renderHook(
+      ({ steps }) => useChatNotifications({
+        cascadeId: "cascade-1", steps, loading: false, wsRunning: true,
+        isConversationRunning: true, enabled: true,
+      }),
+      { initialProps: { steps: [] as TrajectoryStep[] } },
+    );
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_READ_URL",
+      status: "CORTEX_STEP_STATUS_WAITING",
+      metadata: { sourceTrajectoryStepInfo: { trajectoryId: "traj-1", stepIndex: 9 } },
+      requestedInteraction: {
+        permission: { resource: { action: "read_url", target: "example.com" } },
+      },
+    };
+    rerender({ steps: [step] });
+    rerender({ steps: [step] });
+    expect(showBrowserNotificationMock).toHaveBeenCalledTimes(1);
+    expect(showBrowserNotificationMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Porta needs approval", body: "example.com",
+      tag: expect.stringContaining("permission:traj-1:9:read_url:example.com"),
+    }));
+  });
+
   it("notifies for new file permission requests", () => {
     const { rerender } = renderHook(
       ({ steps }) =>
