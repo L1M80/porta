@@ -24,9 +24,10 @@ import {
   CommandCard,
   CodeActionCard,
   FilePermissionCard,
+  PermissionCard,
   SubagentCard,
 } from "./StepCards";
-import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
+import { getAskQuestionRequest, getFilePermissionRequest, getPermissionRequest } from "../utils/stepCards";
 import {
   IconCopy,
   IconCheck,
@@ -281,6 +282,22 @@ function SystemMessage({
               permissionRequest={fpr}
               onFilePermission={onFilePermission}
               onGenericPermission={onCommandAction}
+            />
+          </div>
+        );
+      }
+    }
+    if (msg.type === "CORTEX_STEP_TYPE_PERMISSION") {
+      const permission = getPermissionRequest(msg.step);
+      if (permission) {
+        return (
+          <div className="message system">
+            <PermissionCard
+              key={JSON.stringify(permission)}
+              step={msg.step}
+              permissionRequest={permission}
+              fallbackStepIndex={msg.stepIndex}
+              onPermission={onCommandAction}
             />
           </div>
         );

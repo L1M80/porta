@@ -1,8 +1,16 @@
 import type {
   AskQuestionRequest,
   FilePermissionRequest,
+  PermissionRequest,
   TrajectoryStep,
 } from "../types";
+
+/** Permissions can be attached to any tool, including unknown step types. */
+export function getPermissionRequest(
+  step: TrajectoryStep,
+): PermissionRequest | undefined {
+  return step.requestedInteraction?.permission;
+}
 
 /**
  * Extract a filePermissionRequest from any of the tool data fields
