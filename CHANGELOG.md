@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-09-09
+
+### Fixed
+
+- Web and tool permission requests now display Allow/Deny controls instead of
+  leaving Antigravity headless conversations waiting without a visible
+  confirmation. The card shows the requested target and tool details. (#139, #140)
+- Permission controls recover after a failed response and handle successive
+  requests on the same tool step. Pending web/tool approvals also trigger the
+  existing optional browser notifications. (#140)
+
 ## [0.16.1] - 2026-09-04
 
 ### Changed
@@ -365,7 +376,11 @@ Initial public release.
 - Remote access via Cloudflare Named Tunnel + Pages + Zero Trust
 - Cross-platform support: Linux (Tier 1), Windows (Tier 2), macOS (Tier 3)
 
-[Unreleased]: https://github.com/L1M80/porta/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/L1M80/porta/compare/v0.16.2...HEAD
+[0.16.2]: https://github.com/L1M80/porta/compare/v0.16.1...v0.16.2
+[0.16.1]: https://github.com/L1M80/porta/compare/v0.16.0...v0.16.1
+[0.16.0]: https://github.com/L1M80/porta/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/L1M80/porta/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/L1M80/porta/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/L1M80/porta/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/L1M80/porta/compare/v0.11.0...v0.12.0
