@@ -114,6 +114,12 @@
   background: transparent;
 }
 
+.permission-card .step-card-desc,
+.permission-card .step-card-cwd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .file-permission-actions {
   display: flex;
   flex-wrap: wrap;

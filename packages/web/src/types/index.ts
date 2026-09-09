@@ -88,14 +88,17 @@ export interface AskQuestionInteraction {
   cancelled?: boolean;
 }
 
+export interface PermissionRequest {
+  resource?: {
+    action?: string;
+    target?: string;
+  };
+  triggerSource?: { type?: string; detail?: string };
+}
+
 export interface RequestedInteractionData {
   askQuestion?: AskQuestionRequest;
-  permission?: {
-    resource?: {
-      action?: string;
-      target?: string;
-    };
-  };
+  permission?: PermissionRequest;
 }
 
 export interface CompletedInteractionData {
@@ -136,6 +139,7 @@ export interface TrajectoryStep {
   viewCodeItem?: ViewCodeItemData;
   listDirectory?: ListDirectoryData;
   find?: FindData;
+  generic?: { args?: Record<string, unknown> };
   askQuestion?: AskQuestionRequest;
   requestedInteraction?: RequestedInteractionData;
   completedInteractions?: CompletedInteractionData[];

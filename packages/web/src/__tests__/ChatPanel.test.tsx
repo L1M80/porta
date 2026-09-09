@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatPanel } from "../components/ChatPanel";
 import { useStepsStream } from "../hooks/useStepsStream";
@@ -31,6 +32,55 @@ function mockSteps(steps: TrajectoryStep[], wsRunning = false) {
 describe("ChatPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("renders a web permission and forwards the response from the chat", async () => {
+    const onCommandAction = vi.fn().mockResolvedValue(undefined);
+    mockSteps([{
+      type: "CORTEX_STEP_TYPE_READ_URL",
+      status: "CORTEX_STEP_STATUS_WAITING",
+      metadata: { sourceTrajectoryStepInfo: { trajectoryId: "traj-web", stepIndex: 41 } },
+      requestedInteraction: {
+        permission: { resource: { action: "read_url", target: "example.com" } },
+      },
+    }], true);
+
+    render(<ChatPanel cascadeId="cascade-1" onRevert={vi.fn()} onFilePermission={vi.fn()} onCommandAction={onCommandAction} />);
+
+    expect(screen.getByText("example.com")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Deny" }));
+    expect(onCommandAction).toHaveBeenCalledWith("traj-web", 41, false);
+  });
+
+  it("allows a second permission requested by the same tool step", async () => {
+    const onCommandAction = vi.fn().mockResolvedValue(undefined);
+    const step: TrajectoryStep = {
+      type: "CORTEX_STEP_TYPE_GENERIC",
+      status: "CORTEX_STEP_STATUS_WAITING",
+      metadata: { sourceTrajectoryStepInfo: { trajectoryId: "traj-web", stepIndex: 41 } },
+      requestedInteraction: {
+        permission: { resource: { action: "read_url", target: "example.com" } },
+      },
+    };
+    const props = {
+      cascadeId: "cascade-1", onRevert: vi.fn(),
+      onFilePermission: vi.fn(), onCommandAction,
+    };
+    mockSteps([step], true);
+    const { rerender } = render(<ChatPanel {...props} />);
+    await userEvent.click(screen.getByRole("button", { name: "Allow" }));
+
+    mockSteps([{
+      ...step,
+      requestedInteraction: {
+        permission: { resource: { action: "read_url", target: "example.org" } },
+      },
+    }], true);
+    rerender(<ChatPanel {...props} />);
+
+    expect(screen.getByText("example.org")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Deny" }));
+    expect(onCommandAction).toHaveBeenNthCalledWith(2, "traj-web", 41, false);
   });
 
   it("renders planner thinking as an implementation plan panel", () => {

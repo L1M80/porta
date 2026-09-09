@@ -1,5 +1,9 @@
 import type { ChatMessage, ToolCallData, TrajectoryStep } from "../types";
-import { getAskQuestionRequest, getFilePermissionRequest } from "../utils/stepCards";
+import {
+  getAskQuestionRequest,
+  getFilePermissionRequest,
+  getPermissionRequest,
+} from "../utils/stepCards";
 import {
   isSubagentToolName,
   subagentDataFromStep,
@@ -43,6 +47,22 @@ export function stepsToMessages(steps: TrajectoryStep[]): ChatMessage[] {
         content: "",
         stepIndex: i,
         type: "CORTEX_STEP_TYPE_FILE_PERMISSION",
+        step,
+      });
+      continue;
+    }
+
+    // Commands already have a dedicated approval card. All other tools need
+    // a generic card even when their underlying step type is not rendered.
+    if (
+      getPermissionRequest(step) &&
+      !(type === "CORTEX_STEP_TYPE_RUN_COMMAND" && step.runCommand)
+    ) {
+      messages.push({
+        role: "system",
+        content: "",
+        stepIndex: i,
+        type: "CORTEX_STEP_TYPE_PERMISSION",
         step,
       });
       continue;

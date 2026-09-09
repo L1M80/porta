@@ -811,7 +811,7 @@ export function registerConversationRoutes(app: Hono): void {
     }
   });
 
-  // ── Command Action (approve/reject proposed commands) ──
+  // ── Generic permission (commands, web access, and tools) ──
 
   app.post("/api/conversations/:id/command-action", async (c) => {
     const id = c.req.param("id");
@@ -830,8 +830,9 @@ export function registerConversationRoutes(app: Hono): void {
         );
       }
 
-      // Use HandleCascadeUserInteraction with commandAction field.
-      // Same RPC as filePermission, different interaction type.
+      // requestedInteraction.permission always expects interaction.permission,
+      // including web/tool access requests. Keep the existing endpoint name
+      // for compatibility with command and file permission clients.
       const payload = {
         cascadeId: id,
         interaction: {

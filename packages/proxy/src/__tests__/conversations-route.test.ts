@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LSInstance } from "../discovery.js";
 import { RPCError } from "../rpc.js";
+import { conversationSignals } from "../signals.js";
 
 const mockGetInstances = vi.fn<() => Promise<LSInstance[]>>();
 const mockRpcCall = vi.fn<
@@ -677,5 +678,27 @@ describe("POST /api/conversations/:id/command-action", () => {
         },
       },
     );
+  });
+
+  it.each([true, false])("routes a web/tool permission (%s) to the selected app and resumes polling", async (approved) => {
+    const activate = vi.fn();
+    conversationSignals.on("activate", activate);
+    try {
+      const res = await app().request("/api/conversations/c-1/command-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-porta-target-app": "antigravity" },
+        body: JSON.stringify({ trajectoryId: "traj-web", stepIndex: 0, approved }),
+      });
+      expect(res.status).toBe(200);
+      expect(mockRpcForConversation).toHaveBeenCalledWith(
+        "HandleCascadeUserInteraction", "c-1", {
+          cascadeId: "c-1",
+          interaction: { trajectoryId: "traj-web", stepIndex: 0, permission: { allow: approved } },
+        }, undefined, false, "antigravity",
+      );
+      expect(activate).toHaveBeenCalledWith("c-1");
+    } finally {
+      conversationSignals.off("activate", activate);
+    }
   });
 });
